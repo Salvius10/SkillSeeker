@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 const PAGE_META: Record<string, { title: string; sub: string }> = {
   challenges: { title: 'Challenges', sub: 'Pick up work, earn points' },
   news: { title: 'News Feed', sub: "What's happening across the org" },
-  leaderboard: { title: 'Leaderboard', sub: "This quarter's standings" },
+  leaderboard: { title: 'Leaderboard', sub: 'All-time and monthly team rankings' },
   profile: { title: 'My Profile', sub: 'Your activity and history' },
   notifications: { title: 'Notifications', sub: 'Activity updates' },
   'admin-challenges': { title: 'All Challenges', sub: 'Manage and monitor every challenge' },

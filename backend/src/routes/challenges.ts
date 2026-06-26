@@ -52,14 +52,14 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { title, description, category, points, due_date, priority } = req.body;
+  const { title, description, category, points, due_date, priority, status } = req.body;
   if (!title || !description || !points) {
     res.status(400).json({ error: 'title, description and points are required' });
     return;
   }
   const { data, error } = await supabase
     .from('challenges')
-    .insert({ title, description, category, points: Number(points), due_date, priority: priority || 'normal', status: 'open', created_by: req.user!.id })
+    .insert({ title, description, category, points: Number(points), due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id })
     .select()
     .single();
   if (error) {

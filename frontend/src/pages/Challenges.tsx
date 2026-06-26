@@ -59,7 +59,9 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await getChallenges({ filter: filter === 'all' ? undefined : filter, minPoints: minPoints || undefined });
+      // inProgress is handled client-side using my_submission_status; don't send it to the server
+      const serverFilter = (filter === 'all' || filter === 'inProgress') ? undefined : filter;
+      const data = await getChallenges({ filter: serverFilter, minPoints: minPoints || undefined });
       setChallenges(data);
     } finally {
       setLoading(false);
@@ -68,13 +70,15 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
 
   useEffect(() => { load(); }, [filter, minPoints]);
 
-  const visible = challenges.filter(c => !search || c.title.toLowerCase().includes(search.toLowerCase()) || c.description.toLowerCase().includes(search.toLowerCase()));
+  const visible = challenges.filter(c => {
+    if (filter === 'inProgress' && c.my_submission_status !== 'pending') return false;
+    return !search || c.title.toLowerCase().includes(search.toLowerCase()) || c.description.toLowerCase().includes(search.toLowerCase());
+  });
 
   const counts = {
     all: challenges.length,
     open: challenges.filter(c => c.status === 'open').length,
     inProgress: challenges.filter(c => c.my_submission_status === 'pending').length,
-    pending: challenges.filter(c => c.my_submission_status === 'pending').length,
     urgent: challenges.filter(c => c.priority === 'urgent').length,
   };
 
@@ -120,7 +124,6 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
         <button onClick={() => setFilter('all')} style={filterBtn(filter === 'all')}>All {counts.all}</button>
         <button onClick={() => setFilter('open')} style={filterBtn(filter === 'open')}>Open {counts.open}</button>
         <button onClick={() => setFilter('inProgress')} style={filterBtn(filter === 'inProgress')}>In Progress {counts.inProgress}</button>
-        <button onClick={() => setFilter('pending')} style={filterBtn(filter === 'pending')}>Pending {counts.pending}</button>
         <button onClick={() => setFilter('urgent')} style={filterBtn(filter === 'urgent')}>Urgent {counts.urgent}</button>
       </div>
 

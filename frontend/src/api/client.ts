@@ -36,7 +36,8 @@ export const reviewSubmission = (id: string, status: 'approved' | 'rejected', fe
   api.put(`/submissions/${id}/review`, { status, feedback }).then(r => r.data);
 
 // Leaderboard
-export const getLeaderboard = () => api.get('/leaderboard').then(r => r.data);
+export const getLeaderboard = (period?: 'all' | 'month') =>
+  api.get('/leaderboard', { params: period === 'month' ? { period: 'month' } : undefined }).then(r => r.data);
 
 // News
 export const getNews = () => api.get('/news').then(r => r.data);
