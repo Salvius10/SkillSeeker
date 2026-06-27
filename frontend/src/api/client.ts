@@ -1,8 +1,9 @@
 import axios from 'axios';
+import type { Notification, SubmissionMessage } from '../types';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
-});
+const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
+
+const api = axios.create({ baseURL: BASE_URL });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('ss_token');
@@ -27,13 +28,27 @@ export const createChallenge = (body: object) =>
 export const updateChallenge = (id: string, body: object) =>
   api.put(`/challenges/${id}`, body).then(r => r.data);
 
+// Picks
+export const getMyPicks = (): Promise<string[]> =>
+  api.get('/picks/my').then(r => r.data);
+export const pickChallenge = (id: string) =>
+  api.post('/picks', { challenge_id: id }).then(r => r.data);
+export const unpickChallenge = (id: string) =>
+  api.delete(`/picks/${id}`).then(r => r.data);
+
 // Submissions
 export const getSubmissions = () => api.get('/submissions').then(r => r.data);
 export const getMySubmissions = () => api.get('/submissions/my').then(r => r.data);
-export const submitChallenge = (challenge_id: string, content: string) =>
-  api.post('/submissions', { challenge_id, content }).then(r => r.data);
+export const submitChallenge = (challenge_id: string, content: string, submission_type?: string) =>
+  api.post('/submissions', { challenge_id, content, submission_type }).then(r => r.data);
 export const reviewSubmission = (id: string, status: 'approved' | 'rejected', feedback?: string) =>
   api.put(`/submissions/${id}/review`, { status, feedback }).then(r => r.data);
+export const getSubmissionMessages = (id: string): Promise<SubmissionMessage[]> =>
+  api.get(`/submissions/${id}/messages`).then(r => r.data);
+export const postSubmissionMessage = (id: string, message: string): Promise<SubmissionMessage> =>
+  api.post(`/submissions/${id}/messages`, { message }).then(r => r.data);
+export const resubmitChallenge = (id: string, content: string, submission_type?: string) =>
+  api.put(`/submissions/${id}/resubmit`, { content, submission_type }).then(r => r.data);
 
 // Leaderboard
 export const getLeaderboard = (period?: 'all' | 'month') =>
@@ -47,6 +62,14 @@ export const reactToPost = (id: string, type: 'celebrate' | 'comment') =>
 // Notifications
 export const getNotifications = () => api.get('/notifications').then(r => r.data);
 export const markAllRead = () => api.put('/notifications/read-all').then(r => r.data);
+export const markNotificationRead = (id: string) =>
+  api.put(`/notifications/${id}/read`).then(r => r.data);
+export const subscribeToNotifications = (callback: (data: Notification) => void): EventSource => {
+  const token = localStorage.getItem('ss_token');
+  const es = new EventSource(`${BASE_URL}/notifications/stream?token=${encodeURIComponent(token ?? '')}`);
+  es.onmessage = (e) => { try { callback(JSON.parse(e.data)); } catch {} };
+  return es;
+};
 
 // Analytics
 export const getAnalytics = () => api.get('/analytics').then(r => r.data);

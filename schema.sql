@@ -93,3 +93,28 @@ create index if not exists idx_submissions_challenge on submissions(challenge_id
 create index if not exists idx_notifications_user on notifications(user_id);
 create index if not exists idx_news_created on news_posts(created_at desc);
 create index if not exists idx_users_points on users(points desc);
+
+-- Picks (employee must pick a challenge before submitting)
+create table if not exists picks (
+  id uuid primary key default gen_random_uuid(),
+  challenge_id uuid not null references challenges(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  picked_at timestamptz not null default now(),
+  unique(challenge_id, user_id)
+);
+create index if not exists idx_picks_user on picks(user_id);
+
+-- Submission type (text / github_url / presentation_url / folder_url)
+alter table submissions add column if not exists submission_type text not null default 'text'
+  check (submission_type in ('text', 'github_url', 'presentation_url', 'folder_url'));
+
+-- Threaded submission messages
+create table if not exists submission_messages (
+  id uuid primary key default gen_random_uuid(),
+  submission_id uuid not null references submissions(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  message text not null,
+  is_admin boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_submission_messages_sub on submission_messages(submission_id);

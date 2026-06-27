@@ -35,15 +35,20 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       entry_count: Array.isArray(c.entry_count) ? (c.entry_count[0]?.count ?? 0) : (c.entry_count ?? 0),
     }));
 
-  // If employee, attach their own submission status
+  // If employee, attach their own submission status, id, and type
   if (req.user!.role === 'employee') {
     const { data: subs } = await supabase
       .from('submissions')
-      .select('challenge_id, status')
+      .select('id, challenge_id, status, submission_type')
       .eq('user_id', req.user!.id);
 
-    const subMap = Object.fromEntries((subs || []).map(s => [s.challenge_id, s.status]));
-    const enriched = flatten(data).map(c => ({ ...c, my_submission_status: subMap[c.id] || null }));
+    const subMap = Object.fromEntries((subs || []).map(s => [s.challenge_id, { id: s.id, status: s.status, type: s.submission_type }]));
+    const enriched = flatten(data).map(c => ({
+      ...c,
+      my_submission_status: subMap[c.id]?.status || null,
+      my_submission_id: subMap[c.id]?.id || null,
+      my_submission_type: subMap[c.id]?.type || null,
+    }));
     res.json(enriched);
     return;
   }
@@ -66,6 +71,14 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
     res.status(500).json({ error: error.message });
     return;
   }
+  // Auto-create a news post so the feed shows new challenges
+  await supabase.from('news_posts').insert({
+    title: `New Challenge: ${data.title}`,
+    content: data.description,
+    points_awarded: 0,
+    user_id: req.user!.id,
+    challenge_id: data.id,
+  });
   res.status(201).json(data);
 });
 

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../db';
 import { requireAuth } from '../middleware/auth';
+import { sseManager } from '../lib/sseManager';
 
 const router = Router();
 
@@ -61,11 +62,12 @@ router.post('/:id/react', requireAuth, async (req: Request, res: Response) => {
   const { data: post } = await supabase.from('news_posts').select('user_id, title').eq('id', req.params.id).single();
   if (post && post.user_id !== req.user!.id) {
     const action = type === 'celebrate' ? 'celebrated' : 'commented on';
-    await supabase.from('notifications').insert({
+    const { data: notif } = await supabase.from('notifications').insert({
       user_id: post.user_id,
       type: `reaction_${type}`,
       message: `${req.user!.name} ${action} your post: ${post.title}`,
-    });
+    }).select().single();
+    if (notif) sseManager.emit(post.user_id, notif);
   }
 
   res.json({ toggled: true });

@@ -3,7 +3,7 @@ import { useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
 import TopNav from './components/TopNav';
 import Login from './pages/Login';
-import { getNotifications, getSubmissions } from './api/client';
+import { getNotifications, getSubmissions, subscribeToNotifications } from './api/client';
 
 const Challenges = lazy(() => import('./pages/Challenges'));
 const NewsFeed = lazy(() => import('./pages/NewsFeed'));
@@ -35,21 +35,27 @@ export default function App() {
     else setPage('challenges');
   }, [user?.role]);
 
-  // Poll unread notifications and pending reviews
+  // Real-time notifications via SSE + initial unread count
   useEffect(() => {
     if (!token) return;
-    const fetch = async () => {
+    getNotifications()
+      .then((notifs: { read: boolean }[]) => setUnreadCount(notifs.filter(n => !n.read).length))
+      .catch(() => {});
+    const es = subscribeToNotifications(() => setUnreadCount(c => c + 1));
+    return () => es.close();
+  }, [token]);
+
+  // Poll pending review count for admins
+  useEffect(() => {
+    if (!token || user?.role !== 'admin') return;
+    const fetchPending = async () => {
       try {
-        const notifs = await getNotifications();
-        setUnreadCount(notifs.filter((n: { read: boolean }) => !n.read).length);
-        if (user?.role === 'admin') {
-          const subs = await getSubmissions();
-          setPendingReviewCount(subs.filter((s: { status: string }) => s.status === 'pending').length);
-        }
+        const subs = await getSubmissions();
+        setPendingReviewCount(subs.filter((s: { status: string }) => s.status === 'pending').length);
       } catch {}
     };
-    fetch();
-    const interval = setInterval(fetch, 60000);
+    fetchPending();
+    const interval = setInterval(fetchPending, 60000);
     return () => clearInterval(interval);
   }, [token, user?.role]);
 
@@ -61,7 +67,7 @@ export default function App() {
       case 'news': return <NewsFeed />;
       case 'leaderboard': return <Leaderboard currentUserId={user.id} />;
       case 'profile': return <Profile />;
-      case 'notifications': return <Notifications onRead={() => setUnreadCount(0)} />;
+      case 'notifications': return <Notifications onRead={() => setUnreadCount(0)} onNavigate={setPage} />;
       case 'admin-challenges': return <AllChallenges />;
       case 'admin-create': return <CreateChallenge onCreated={() => setPage('admin-challenges')} />;
       case 'admin-review': return <SubmissionReview onReviewed={() => setPendingReviewCount(c => Math.max(0, c - 1))} />;
@@ -72,8 +78,8 @@ export default function App() {
 
   return (
     <>
-      <style>{`* { box-sizing: border-box; } body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; } @keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ display: 'flex', height: '100vh', background: '#f5f7fc', overflow: 'hidden' }}>
+      <style>{`* { box-sizing: border-box; } body { margin: 0; font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif; background: #faf8ff; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }`}</style>
+      <div style={{ display: 'flex', height: '100vh', background: '#faf8ff', overflow: 'hidden' }}>
         <Sidebar page={page} setPage={setPage} unreadCount={unreadCount} pendingReviewCount={pendingReviewCount} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <TopNav page={page} setPage={setPage} unreadCount={unreadCount} />

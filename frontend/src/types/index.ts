@@ -20,6 +20,8 @@ export interface Challenge {
   created_at: string;
   entry_count?: number;
   my_submission_status?: 'pending' | 'approved' | 'rejected' | null;
+  my_submission_id?: string | null;
+  my_submission_type?: string | null;
 }
 
 export interface Submission {
@@ -27,12 +29,23 @@ export interface Submission {
   challenge_id: string;
   user_id: string;
   content: string;
+  submission_type?: 'text' | 'github_url' | 'presentation_url' | 'folder_url';
   status: 'pending' | 'approved' | 'rejected';
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
   challenge?: Challenge;
   user?: Pick<User, 'id' | 'name' | 'team'>;
+}
+
+export interface SubmissionMessage {
+  id: string;
+  submission_id: string;
+  user_id: string;
+  message: string;
+  is_admin: boolean;
+  created_at: string;
+  author?: { name: string; role: string };
 }
 
 export interface NewsPost {
@@ -73,6 +86,11 @@ export interface AnalyticsData {
   total_points_awarded: number;
   challenges_posted: number;
   points_by_category: { category: string; points: number }[];
+  approval_rate: number;
+  pending_count: number;
+  top_employees: { name: string; team: string; points: number; completions: number }[];
+  submissions_by_week: { week: string; count: number }[];
+  team_stats: { team: string; total_points: number; member_count: number; completion_count: number }[];
 }
 
 export interface Badge {

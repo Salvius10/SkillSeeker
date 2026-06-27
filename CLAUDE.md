@@ -84,17 +84,34 @@ All routes are registered in `backend/src/index.ts`. Each route file exports an 
 | Route file | Prefix | Notable behaviour |
 |---|---|---|
 | `auth.ts` | `/auth` | bcrypt password hashing; JWT sign with 7d expiry |
-| `challenges.ts` | `/challenges` | GET enriches with `entry_count` and employee's own `my_submission_status` |
-| `submissions.ts` | `/submissions` | Approval triggers: `increment_points` RPC + news post creation + notification |
+| `challenges.ts` | `/challenges` | GET enriches with `entry_count`, `my_submission_status`, `my_submission_id`, `my_submission_type`; POST auto-creates a news post |
+| `submissions.ts` | `/submissions` | Approval: `increment_points` RPC + news post + SSE notification; Rejection: thread message + SSE notification; also handles `/:id/messages`, `/:id/resubmit` |
+| `picks.ts` | `/picks` | Employee must pick a challenge before submitting — `GET /my`, `POST /`, `DELETE /:challengeId` |
 | `leaderboard.ts` | `/leaderboard` | Queries `users` table ordered by `points DESC`, joins submission count |
-| `news.ts` | `/news` | Aggregates reaction counts; toggling same reaction type removes it |
-| `notifications.ts` | `/notifications` | `PUT /read-all` marks all unread as read |
-| `analytics.ts` | `/analytics` | Admin-only; parallel Supabase queries for KPIs |
-| `profile.ts` | `/profile` | Returns user + submissions + badges + computed rank |
+| `news.ts` | `/news` | Aggregates reaction counts; toggling same reaction type removes it; reactions emit SSE notifications |
+| `notifications.ts` | `/notifications` | `GET /stream` SSE endpoint for real-time push; `PUT /read-all`; `PUT /:id/read` for single-read |
+| `analytics.ts` | `/analytics` | Admin-only; approval_rate, pending_count, top_employees, submissions_by_week, team_stats + existing KPIs |
+| `profile.ts` | `/profile` | Returns user + submissions + badges + computed rank + total_employees |
+
+### Real-time notifications
+
+`backend/src/lib/sseManager.ts` — singleton `Map<userId, Set<Response>>`. Call `sseManager.emit(userId, data)` after any `notifications` insert to push to connected clients. Frontend subscribes via `EventSource` at `GET /notifications/stream?token=<jwt>` (token in query param because EventSource cannot set headers).
+
+### Pick → Submit flow
+
+Employees must **Pick** a challenge (via `POST /picks`) before the Submit button appears. Picks are stored in the `picks` table. After submitting, the pick is superseded by the submission. The `Challenges` page loads picks in parallel with challenges on mount.
+
+### Submission threads
+
+After admin reviews (approve/reject), employees see a "View thread" button on their submission status chip. This opens `SubmissionThread.tsx` which shows the back-and-forth message thread (`submission_messages` table). Rejected submissions show a "Revise & Resubmit" flow with format selection.
+
+### Submission formats
+
+`submission_type` column on `submissions`: `'text' | 'github_url' | 'presentation_url' | 'folder_url'` — all URL-based (no file storage). Selected via radio-style buttons in the submit form and resubmit panel.
 
 ### Database (Supabase / PostgreSQL)
 
-Key tables: `users`, `challenges`, `submissions`, `news_posts`, `reactions`, `notifications`, `badges`.
+Key tables: `users`, `challenges`, `submissions`, `picks`, `submission_messages`, `news_posts`, `reactions`, `notifications`, `badges`.
 
 The `increment_points(user_id, amount)` Supabase RPC (defined in `schema.sql`) atomically updates user points — always use this instead of a direct UPDATE when awarding points.
 

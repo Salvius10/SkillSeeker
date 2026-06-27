@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary: #1a00d9;
+    --primary-dark: #0f0099;
+    --orange: #fe6e06;
+    --bg: #faf8ff;
+    --surface: #ffffff;
+    --surface-low: #f2f3ff;
+    --surface-mid: #eaedff;
+    --border: #dae2fd;
+    --border-variant: #c6c4d9;
+    --text-primary: #131b2e;
+    --text-secondary: #454556;
+    --text-muted: #767588;
+    --coding: #8b5cf6;
+    --research: #06b6d4;
+    --success: #10b981;
+    --font-sans: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--text-primary);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

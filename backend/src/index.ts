@@ -12,6 +12,7 @@ import newsRoutes from './routes/news';
 import notificationRoutes from './routes/notifications';
 import analyticsRoutes from './routes/analytics';
 import profileRoutes from './routes/profile';
+import picksRoutes from './routes/picks';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/news', newsRoutes);
 app.use('/notifications', notificationRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/profile', profileRoutes);
+app.use('/picks', picksRoutes);
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

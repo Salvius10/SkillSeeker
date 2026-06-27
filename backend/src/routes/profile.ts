@@ -20,8 +20,9 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   ]);
 
   const rank = (rankData ?? []).findIndex(u => u.id === userId) + 1;
+  const totalEmployees = rankData?.length ?? 0;
 
-  res.json({ user, submissions: submissions || [], badges: badges || [], rank });
+  res.json({ user, submissions: submissions || [], badges: badges || [], rank, total_employees: totalEmployees });
 });
 
 export default router;
