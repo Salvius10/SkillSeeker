@@ -59,7 +59,7 @@ export default function CreateChallenge({ onCreated }: Props) {
   const lbl: React.CSSProperties = { fontSize: 11.5, fontWeight: 700, color: C.textMuted, marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono };
 
   return (
-    <div style={{ maxWidth: 740, margin: '0 auto', animation: 'fadeIn 0.2s ease' }}>
+    <div style={{ maxWidth: 740, margin: '0 auto', animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
       <div style={{ background: C.surface, border: '1px solid #dae2fd', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 12px rgba(26,0,217,0.06)' }}>
         {/* Header strip */}
         <div style={{ height: 4, background: 'linear-gradient(90deg, #0f0099, #1a00d9, #fe6e06)' }} />

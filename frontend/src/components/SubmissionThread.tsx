@@ -77,8 +77,8 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
   const st = STATUS_STYLE[status];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 18, width: '100%', maxWidth: 620, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, animation: 'backdropIn 0.2s ease' }}>
+      <div style={{ background: '#fff', borderRadius: 18, width: '100%', maxWidth: 620, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', animation: 'scaleIn 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
 
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #e7edf8', display: 'flex', alignItems: 'center', gap: 12 }}>

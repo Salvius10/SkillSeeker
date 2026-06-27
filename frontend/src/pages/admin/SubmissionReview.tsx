@@ -55,7 +55,7 @@ export default function SubmissionReview({ onReviewed }: Props) {
   );
 
   return (
-    <div style={{ maxWidth: 920, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14, animation: 'fadeIn 0.2s ease' }}>
+    <div style={{ maxWidth: 920, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14, animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
       {submissions.length === 0 && (
         <div style={{ background: C.surface, border: '1px solid #dae2fd', borderRadius: 16, padding: 56, textAlign: 'center', boxShadow: '0 4px 12px rgba(26,0,217,0.04)' }}>
           <CheckCircle2 size={48} color={C.success} style={{ marginBottom: 12, opacity: 0.7 }} />

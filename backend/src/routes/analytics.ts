@@ -21,27 +21,50 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
     { data: approvedSubs },
   ] = await Promise.all([
     supabase.from('users').select('id, name, team, points').eq('role', 'employee'),
-    supabase.from('challenges').select('id, category, points, status'),
-    supabase.from('submissions').select('user_id, created_at, status'),
-    supabase.from('submissions').select('user_id, created_at, reviewed_at, challenge:challenges(points, category)').eq('status', 'approved'),
+    supabase.from('challenges').select('id, title, category, points, status'),
+    supabase.from('submissions').select('user_id, challenge_id, created_at, status'),
+    supabase.from('submissions')
+      .select('user_id, created_at, reviewed_at, challenge:challenges(points, category)')
+      .eq('status', 'approved'),
   ]);
 
+  // ── Participation ─────────────────────────────────────────────────
   const totalUsers = users?.length ?? 0;
   const participatingUsers = new Set(submissions?.map(s => s.user_id) ?? []).size;
   const participationRate = totalUsers > 0 ? Math.round((participatingUsers / totalUsers) * 100) : 0;
 
+  // ── Submission counts ─────────────────────────────────────────────
+  const totalSubmissions = submissions?.length ?? 0;
+  const approvedCount = approvedSubs?.length ?? 0;
+  const rejectedCount = (submissions ?? []).filter(s => s.status === 'rejected').length;
+  const pendingCount = (submissions ?? []).filter(s => s.status === 'pending').length;
+
+  // ── Approval rate ─────────────────────────────────────────────────
+  const decided = approvedCount + rejectedCount;
+  const approvalRate = decided > 0 ? Math.round((approvedCount / decided) * 100) : 0;
+
+  // ── Review turnaround (approved subs only) ────────────────────────
+  const reviewDiffs = (approvedSubs ?? [])
+    .filter(s => s.created_at && s.reviewed_at)
+    .map(s => (new Date(s.reviewed_at!).getTime() - new Date(s.created_at).getTime()) / 86400000);
+  const avgReviewDays = reviewDiffs.length
+    ? +(reviewDiffs.reduce((a, b) => a + b, 0) / reviewDiffs.length).toFixed(1)
+    : 0;
+
+  // ── Points ────────────────────────────────────────────────────────
   const totalPointsAwarded = (approvedSubs ?? []).reduce((sum, s) => {
     const pts = (s.challenge as unknown as { points: number } | null)?.points ?? 0;
     return sum + pts;
   }, 0);
 
-  const avgDaysToSubmit = (() => {
-    const diffs = (approvedSubs ?? [])
-      .filter(s => s.created_at && s.reviewed_at)
-      .map(s => (new Date(s.reviewed_at!).getTime() - new Date(s.created_at).getTime()) / 86400000);
-    return diffs.length ? +(diffs.reduce((a, b) => a + b, 0) / diffs.length).toFixed(1) : 0;
-  })();
+  // ── Challenge stats ───────────────────────────────────────────────
+  const openChallenges = (challenges ?? []).filter(c => c.status === 'open').length;
+  const closedChallenges = (challenges ?? []).filter(c => c.status === 'closed').length;
+  const totalPointsPool = (challenges ?? [])
+    .filter(c => c.status === 'open')
+    .reduce((sum, c) => sum + c.points, 0);
 
+  // ── Points by category ────────────────────────────────────────────
   const categoryMap: Record<string, number> = {};
   for (const s of approvedSubs ?? []) {
     const cat = (s.challenge as unknown as { category: string; points: number } | null)?.category ?? 'Other';
@@ -50,12 +73,7 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
   }
   const pointsByCategory = Object.entries(categoryMap).map(([category, points]) => ({ category, points }));
 
-  // New metrics
-  const pendingCount = (submissions ?? []).filter(s => s.status === 'pending').length;
-  const decided = (submissions ?? []).filter(s => s.status !== 'pending');
-  const approvedCount = decided.filter(s => s.status === 'approved').length;
-  const approvalRate = decided.length > 0 ? Math.round((approvedCount / decided.length) * 100) : 0;
-
+  // ── Top performers ────────────────────────────────────────────────
   const completionsByUser: Record<string, number> = {};
   for (const s of approvedSubs ?? []) {
     completionsByUser[s.user_id] = (completionsByUser[s.user_id] ?? 0) + 1;
@@ -65,6 +83,7 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
     .slice(0, 5)
     .map(u => ({ name: u.name, team: u.team, points: u.points, completions: completionsByUser[u.id] ?? 0 }));
 
+  // ── Submission trend by week ──────────────────────────────────────
   const cutoff = new Date(Date.now() - 8 * 7 * 86400000);
   const weekMap: Record<string, number> = {};
   for (const s of submissions ?? []) {
@@ -76,6 +95,7 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([week, count]) => ({ week, count }));
 
+  // ── Team performance ──────────────────────────────────────────────
   const userById = Object.fromEntries((users ?? []).map(u => [u.id, u]));
   const teamMap: Record<string, { points: number; members: Set<string>; completions: number }> = {};
   for (const u of users ?? []) {
@@ -91,17 +111,42 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
     .map(([team, d]) => ({ team, total_points: d.points, member_count: d.members.size, completion_count: d.completions }))
     .sort((a, b) => b.total_points - a.total_points);
 
+  // ── Top challenges by submission count ────────────────────────────
+  const challengeSubCount: Record<string, number> = {};
+  for (const s of submissions ?? []) {
+    if (s.challenge_id) {
+      challengeSubCount[s.challenge_id] = (challengeSubCount[s.challenge_id] ?? 0) + 1;
+    }
+  }
+  const challengeById = Object.fromEntries((challenges ?? []).map(c => [c.id, c]));
+  const topChallenges = Object.entries(challengeSubCount)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6)
+    .map(([id, count]) => ({
+      id,
+      title: challengeById[id]?.title ?? 'Unknown',
+      count,
+      status: challengeById[id]?.status ?? 'open',
+    }));
+
   res.json({
     participation_rate: participationRate,
-    avg_days_to_submit: avgDaysToSubmit,
-    total_points_awarded: totalPointsAwarded,
-    challenges_posted: challenges?.length ?? 0,
-    points_by_category: pointsByCategory,
-    approval_rate: approvalRate,
+    total_submissions: totalSubmissions,
+    approved_count: approvedCount,
+    rejected_count: rejectedCount,
     pending_count: pendingCount,
+    approval_rate: approvalRate,
+    avg_review_days: avgReviewDays,
+    total_points_awarded: totalPointsAwarded,
+    open_challenges: openChallenges,
+    closed_challenges: closedChallenges,
+    total_points_pool: totalPointsPool,
+    challenges_posted: (challenges?.length ?? 0),
+    points_by_category: pointsByCategory,
     top_employees: topEmployees,
     submissions_by_week: submissionsByWeek,
     team_stats: teamStats,
+    top_challenges: topChallenges,
   });
 });
 

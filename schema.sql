@@ -118,3 +118,25 @@ create table if not exists submission_messages (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_submission_messages_sub on submission_messages(submission_id);
+
+-- Enforce exclusive picks: one employee per challenge
+create unique index if not exists idx_picks_challenge_exclusive on picks(challenge_id);
+
+-- Social comments on a picked challenge (visible to all)
+create table if not exists challenge_comments (
+  id uuid primary key default gen_random_uuid(),
+  challenge_id uuid not null references challenges(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_challenge_comments_challenge on challenge_comments(challenge_id);
+
+-- Likes on challenge comments
+create table if not exists challenge_comment_likes (
+  id uuid primary key default gen_random_uuid(),
+  comment_id uuid not null references challenge_comments(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique(comment_id, user_id)
+);

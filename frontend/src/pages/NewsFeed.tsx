@@ -75,7 +75,7 @@ export default function NewsFeed() {
     .slice(0, 3);
 
   return (
-    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', maxWidth: 1020, margin: '0 auto', animation: 'fadeIn 0.2s ease' }}>
+    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', maxWidth: 1020, margin: '0 auto', animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
       {/* Main feed */}
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Quick stats */}

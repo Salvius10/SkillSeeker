@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, CheckCheck } from 'lucide-react';
-import { getNotifications, markNotificationRead, subscribeToNotifications } from '../api/client';
+import { getNotifications, markNotificationRead, markAllRead, subscribeToNotifications } from '../api/client';
 import type { Notification } from '../types';
 
 const C = {
@@ -20,6 +20,7 @@ const C = {
 const TYPE_CONFIG: Record<string, { emoji: string; accent: string; bg: string }> = {
   submission_approved: { emoji: '🏆', accent: C.success,   bg: 'rgba(16,185,129,0.05)' },
   submission_rejected: { emoji: '📋', accent: C.orange,    bg: 'rgba(254,110,6,0.05)'  },
+  new_submission:      { emoji: '📥', accent: '#8b5cf6',   bg: 'rgba(139,92,246,0.05)' },
   reaction_celebrate:  { emoji: '🎉', accent: C.orange,    bg: 'rgba(254,110,6,0.05)'  },
   reaction_comment:    { emoji: '💬', accent: '#8b5cf6',   bg: 'rgba(139,92,246,0.05)' },
   new_challenge:       { emoji: '⚡', accent: C.primary,   bg: 'rgba(26,0,217,0.05)'   },
@@ -81,6 +82,12 @@ export default function Notifications({ onRead, onNavigate }: Props) {
     if (stillUnread === 0) onRead();
   };
 
+  const handleMarkAllRead = async () => {
+    await markAllRead();
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+    onRead();
+  };
+
   const filtered = notifs.filter(n => {
     if (filter === 'submissions') return n.type.startsWith('submission_');
     if (filter === 'reactions') return n.type.startsWith('reaction_');
@@ -111,7 +118,7 @@ export default function Notifications({ onRead, onNavigate }: Props) {
   );
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', animation: 'fadeIn 0.2s ease' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
       {/* Filter bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
         {(['all', 'submissions', 'reactions', 'challenges'] as Filter[]).map(f => (
@@ -120,10 +127,13 @@ export default function Notifications({ onRead, onNavigate }: Props) {
           </button>
         ))}
         {unreadCount > 0 && (
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: C.textMuted, display: 'flex', alignItems: 'center', gap: 5, fontFamily: C.mono }}>
-            <CheckCheck size={14} color={C.primary} />
-            {unreadCount} unread
-          </span>
+          <button
+            onClick={handleMarkAllRead}
+            style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.primary, background: '#eaedff', border: 'none', borderRadius: 20, padding: '5px 12px', fontFamily: C.sans, fontWeight: 700, cursor: 'pointer' }}
+          >
+            <CheckCheck size={13} />
+            Mark all read ({unreadCount})
+          </button>
         )}
       </div>
 
@@ -140,7 +150,7 @@ export default function Notifications({ onRead, onNavigate }: Props) {
           <div key={group.label}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 8 }}>{group.label}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {group.items.map(n => {
+              {group.items.map((n, ni) => {
                 const cfg = TYPE_CONFIG[n.type] ?? { emoji: '🔔', accent: C.primary, bg: C.surfaceLow };
                 return (
                   <div
@@ -154,6 +164,9 @@ export default function Notifications({ onRead, onNavigate }: Props) {
                       borderRadius: 14,
                       padding: '14px 16px',
                       transition: 'all 0.15s',
+                      animation: 'slideUp 0.35s cubic-bezier(0.16,1,0.3,1)',
+                      animationDelay: `${ni * 40}ms`,
+                      animationFillMode: 'both',
                     }}
                   >
                     <span style={{ fontSize: 20, flexShrink: 0, marginTop: 2 }}>{cfg.emoji}</span>

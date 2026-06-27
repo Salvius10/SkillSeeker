@@ -60,7 +60,7 @@ export default function Leaderboard({ currentUserId }: Props) {
   });
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', animation: 'fadeIn 0.2s ease' }}>
+    <div style={{ maxWidth: 900, margin: '0 auto', animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
@@ -91,7 +91,7 @@ export default function Leaderboard({ currentUserId }: Props) {
                 const p = PODIUM[i];
                 const isMe = e.user_id === currentUserId;
                 return (
-                  <div key={e.user_id} style={{ background: p.gradient, borderRadius: 16, padding: '24px 20px', color: '#fff', textAlign: 'center', boxShadow: p.shadow, position: 'relative', overflow: 'hidden' }}>
+                  <div key={e.user_id} style={{ background: p.gradient, borderRadius: 16, padding: '24px 20px', color: '#fff', textAlign: 'center', boxShadow: p.shadow, position: 'relative', overflow: 'hidden', animation: 'scaleIn 0.4s cubic-bezier(0.16,1,0.3,1)', animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
                     {isMe && (
                       <div style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(255,255,255,0.25)', borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 700, fontFamily: C.mono }}>YOU</div>
                     )}

@@ -49,6 +49,20 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     .select()
     .single();
   if (error) { res.status(500).json({ error: error.message }); return; }
+
+  // Notify all admins of the new pending submission
+  const [{ data: challenge }, { data: admins }] = await Promise.all([
+    supabase.from('challenges').select('title').eq('id', challenge_id).single(),
+    supabase.from('users').select('id').eq('role', 'admin'),
+  ]);
+  if (admins?.length) {
+    const msg = `${req.user!.name} submitted: ${challenge?.title ?? 'a challenge'} · pending review`;
+    const { data: notifs } = await supabase.from('notifications')
+      .insert(admins.map(a => ({ user_id: a.id, type: 'new_submission', message: msg })))
+      .select();
+    for (const n of notifs ?? []) sseManager.emit(n.user_id, n);
+  }
+
   res.status(201).json(data);
 });
 

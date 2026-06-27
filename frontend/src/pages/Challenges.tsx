@@ -177,7 +177,7 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
   });
 
   return (
-    <div style={{ animation: 'fadeIn 0.2s ease' }}>
+    <div style={{ animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
 
       {/* Hero / matched opportunities banner */}
       {counts.open > 0 && (
@@ -252,7 +252,7 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {visible.map(c => {
+          {visible.map((c, index) => {
             const tk = tagKey(c);
             const tag = TAG[tk] ?? TAG.closed;
             const cat = catConfig(c.category);
@@ -274,7 +274,9 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
                   display: 'flex',
                   gap: 16,
                   transition: 'border-color 0.15s, box-shadow 0.15s',
-                  animation: 'fadeIn 0.2s ease',
+                  animation: 'slideUp 0.4s cubic-bezier(0.16,1,0.3,1)',
+                  animationDelay: `${Math.min(index, 5) * 50}ms`,
+                  animationFillMode: 'both',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -311,7 +313,7 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
 
                   {/* Inline submit form */}
                   {submitId === c.id && isPicked && (
-                    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10, animation: 'expandDown 0.35s cubic-bezier(0.16,1,0.3,1)' }}>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {FORMAT_OPTIONS.map(f => (
                           <button key={f.key} type="button" onClick={() => setSubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 8, border: `2px solid ${submitType === f.key ? C.primary : '#dae2fd'}`, background: submitType === f.key ? '#f2f3ff' : C.surface, color: submitType === f.key ? C.primary : C.textSec, fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>{f.label}</button>

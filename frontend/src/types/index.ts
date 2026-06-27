@@ -82,8 +82,14 @@ export interface LeaderboardEntry {
 
 export interface AnalyticsData {
   participation_rate: number;
-  avg_days_to_submit: number;
+  avg_review_days: number;
   total_points_awarded: number;
+  total_submissions: number;
+  approved_count: number;
+  rejected_count: number;
+  open_challenges: number;
+  closed_challenges: number;
+  total_points_pool: number;
   challenges_posted: number;
   points_by_category: { category: string; points: number }[];
   approval_rate: number;
@@ -91,6 +97,7 @@ export interface AnalyticsData {
   top_employees: { name: string; team: string; points: number; completions: number }[];
   submissions_by_week: { week: string; count: number }[];
   team_stats: { team: string; total_points: number; member_count: number; completion_count: number }[];
+  top_challenges: { id: string; title: string; count: number; status: string }[];
 }
 
 export interface Badge {

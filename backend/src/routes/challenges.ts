@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../db';
 import { requireAuth, requireAdmin } from '../middleware/auth';
+import { sseManager } from '../lib/sseManager';
 
 const router = Router();
 
@@ -79,6 +80,17 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
     user_id: req.user!.id,
     challenge_id: data.id,
   });
+
+  // Notify all employees of the new challenge
+  const { data: employees } = await supabase.from('users').select('id').eq('role', 'employee');
+  if (employees?.length) {
+    const msg = `New challenge available: ${data.title} · ${data.points} pts`;
+    const { data: notifs } = await supabase.from('notifications')
+      .insert(employees.map(e => ({ user_id: e.id, type: 'new_challenge', message: msg })))
+      .select();
+    for (const n of notifs ?? []) sseManager.emit(n.user_id, n);
+  }
+
   res.status(201).json(data);
 });
 
