@@ -11,7 +11,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   success: '#10b981',
   sans: "'Hanken Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace",
@@ -51,6 +51,7 @@ export default function AllChallenges() {
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ title: '', status: 'open', priority: 'normal', due_date: '' });
+  const [editError, setEditError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -68,13 +69,14 @@ export default function AllChallenges() {
 
   const saveEdit = async () => {
     if (!editId) return;
+    setEditError('');
     setSaving(true);
     try {
       await updateChallenge(editId, editForm);
       setEditId(null);
       load();
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error updating challenge');
+      setEditError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error updating challenge. Try again.');
     } finally {
       setSaving(false);
     }
@@ -183,6 +185,9 @@ export default function AllChallenges() {
                       </div>
                     ))}
                   </div>
+                  {editError && (
+                    <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 8, padding: '8px 12px' }}>{editError}</div>
+                  )}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={saveEdit} disabled={saving} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 9, padding: '8px 18px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
                       {saving ? 'Saving…' : 'Save Changes'}

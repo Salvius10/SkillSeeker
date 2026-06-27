@@ -10,7 +10,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   sans: "'Hanken Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace",
 };

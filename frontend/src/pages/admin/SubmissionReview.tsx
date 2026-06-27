@@ -11,7 +11,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   success: '#10b981',
   sans: "'Hanken Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace",
@@ -24,6 +24,7 @@ export default function SubmissionReview({ onReviewed }: Props) {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [reviewError, setReviewError] = useState<Record<string, string>>({});
 
   const load = async () => {
     const data = await getSubmissions();
@@ -35,12 +36,13 @@ export default function SubmissionReview({ onReviewed }: Props) {
 
   const review = async (id: string, status: 'approved' | 'rejected') => {
     setProcessing(id);
+    setReviewError(prev => ({ ...prev, [id]: '' }));
     try {
       await reviewSubmission(id, status, feedback[id]);
       onReviewed();
       load();
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error');
+      setReviewError(prev => ({ ...prev, [id]: (e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Review failed. Try again.' }));
     } finally {
       setProcessing(null);
     }
@@ -114,6 +116,9 @@ export default function SubmissionReview({ onReviewed }: Props) {
               </div>
 
               {/* Actions */}
+              {reviewError[s.id] && (
+                <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>{reviewError[s.id]}</div>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button
                   onClick={() => review(s.id, 'approved')}

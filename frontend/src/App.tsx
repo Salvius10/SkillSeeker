@@ -78,7 +78,7 @@ export default function App() {
 
   return (
     <>
-      <style>{`* { box-sizing: border-box; } body { margin: 0; font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif; background: #faf8ff; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }`}</style>
+      <style>{`* { box-sizing: border-box; } body { margin: 0; font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif; background: #faf8ff; } *:focus-visible { outline: 2px solid #1a00d9; outline-offset: 2px; border-radius: 3px; } @keyframes spin { to { transform: rotate(360deg); } } @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } } @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.55; transform:scale(0.75); } } @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }`}</style>
       <div style={{ display: 'flex', height: '100vh', background: '#faf8ff', overflow: 'hidden' }}>
         <Sidebar page={page} setPage={setPage} unreadCount={unreadCount} pendingReviewCount={pendingReviewCount} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

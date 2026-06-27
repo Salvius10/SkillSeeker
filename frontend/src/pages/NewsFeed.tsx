@@ -12,7 +12,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   success: '#10b981',
   sans: "'Hanken Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace",
@@ -113,9 +113,8 @@ export default function NewsFeed() {
 
             return (
               <div key={post.id} style={{
-                background: C.surface,
-                border: '1px solid #dae2fd',
-                borderLeft: `3px solid ${accentColor}`,
+                background: isChallenge ? 'rgba(26,0,217,0.018)' : 'rgba(254,110,6,0.018)',
+                border: `1px solid ${isChallenge ? 'rgba(26,0,217,0.12)' : 'rgba(254,110,6,0.18)'}`,
                 borderRadius: 14,
                 padding: '18px 20px',
                 boxShadow: '0 4px 12px rgba(26,0,217,0.04)',

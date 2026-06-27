@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Clock, X, Flame, Target, Code, FlaskConical, Sparkles } from 'lucide-react';
+import { Search, Clock, X, Flame, Target, Code, FlaskConical, Sparkles, SearchX } from 'lucide-react';
 import { getChallenges, submitChallenge, getMyPicks, pickChallenge, unpickChallenge } from '../api/client';
 import type { Challenge } from '../types';
 import SubmissionThread from '../components/SubmissionThread';
@@ -14,7 +14,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   success: '#10b981',
   coding: '#8b5cf6',
   research: '#06b6d4',
@@ -75,6 +75,8 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
   const [submitContent, setSubmitContent] = useState('');
   const [submitType, setSubmitType] = useState<'text' | 'github_url' | 'presentation_url' | 'folder_url'>('text');
   const [submitting, setSubmitting] = useState(false);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadTitle, setThreadTitle] = useState('');
@@ -111,11 +113,12 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
   };
 
   const handlePick = async (challengeId: string) => {
+    setPickError(null);
     try {
       await pickChallenge(challengeId);
       setMyPicks(p => [...p, challengeId]);
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error picking challenge');
+      setPickError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not pick challenge. Try again.');
     }
   };
 
@@ -127,7 +130,11 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
   };
 
   const handleConfirmSubmit = async (c: Challenge) => {
-    if (!submitContent.trim()) return;
+    if (!submitContent.trim()) {
+      setSubmitError('Please add your submission content before submitting.');
+      return;
+    }
+    setSubmitError(null);
     setSubmitting(true);
     try {
       await submitChallenge(c.id, submitContent, submitType);
@@ -136,7 +143,7 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
       setSubmitType('text');
       load();
     } catch (e: unknown) {
-      alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error submitting');
+      setSubmitError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Submission failed. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -226,7 +233,7 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
       {/* Urgent live banner */}
       {urgentChallenges.length > 0 && (
         <div style={{ background: 'linear-gradient(90deg, #fe6e06 0%, #ff8c38 100%)', borderRadius: 12, padding: '14px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, color: '#fff', boxShadow: '0 4px 16px rgba(254,110,6,0.25)' }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', animation: 'spin 2s linear infinite', boxShadow: '0 0 0 3px rgba(255,255,255,0.3)' }} />
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', animation: 'pulse-dot 1.5s ease-in-out infinite', boxShadow: '0 0 0 3px rgba(255,255,255,0.3)' }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '-0.2px' }}>LIVE — Urgent challenge open</div>
             <div style={{ fontSize: 12, opacity: 0.85, marginTop: 1 }}>Submit before the deadline to maximize your points!</div>
@@ -289,7 +296,7 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
                   </div>
 
                   {/* Title + description */}
-                  <h3 style={{ margin: '0 0 6px', fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.2px', color: C.text, lineHeight: 1.35 }}>{c.title}</h3>
+                  <h3 style={{ margin: '0 0 6px', fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.2px', color: C.text, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.title}</h3>
                   <p style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.65, color: C.textSec }}>{c.description}</p>
 
                   {/* Meta row */}
@@ -311,11 +318,14 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
                         ))}
                       </div>
                       <textarea value={submitContent} onChange={e => setSubmitContent(e.target.value)} placeholder={submitType === 'text' ? 'Describe your solution, link your PR or write-up…' : 'Paste your URL here…'} rows={4} style={{ border: '1px solid #dae2fd', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, fontFamily: C.sans, resize: 'vertical', outline: 'none', background: '#fafbff' }} />
+                      {submitError && (
+                        <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 8, padding: '8px 12px' }}>{submitError}</div>
+                      )}
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button onClick={() => handleConfirmSubmit(c)} disabled={submitting} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
                           {submitting ? 'Submitting…' : 'Confirm Submit'}
                         </button>
-                        <button onClick={() => setSubmitId(null)} style={{ background: '#f2f3ff', color: C.textSec, border: '1px solid #dae2fd', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => { setSubmitId(null); setSubmitError(null); }} style={{ background: '#f2f3ff', color: C.textSec, border: '1px solid #dae2fd', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <X size={12} />Cancel
                         </button>
                       </div>
@@ -343,9 +353,12 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
                       Submit
                     </button>
                   ) : (
-                    <button onClick={() => handlePick(c.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.surface, color: C.primary, border: `1.5px solid ${C.primary}`, borderRadius: 24, padding: '7px 16px', fontSize: 12.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
-                      Pick
-                    </button>
+                    <>
+                      <button onClick={() => handlePick(c.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.surface, color: C.primary, border: `1.5px solid ${C.primary}`, borderRadius: 24, padding: '7px 16px', fontSize: 12.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                        Pick
+                      </button>
+                      {pickError && <div style={{ fontSize: 11, color: '#d32f2f', maxWidth: 100, textAlign: 'right', lineHeight: 1.3 }}>{pickError}</div>}
+                    </>
                   )}
 
                   {isPicked && !hasSub && (
@@ -357,9 +370,17 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints 
           })}
           {visible.length === 0 && (
             <div style={{ textAlign: 'center', color: C.textMuted, padding: 60, background: C.surface, border: '1px solid #dae2fd', borderRadius: 14 }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+              <SearchX size={36} style={{ color: '#dae2fd', marginBottom: 12 }} />
               <div style={{ fontWeight: 700, color: C.textSec }}>No challenges match your filters</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Try a different filter or search term</div>
+              {(search || filter !== 'all' || minPoints > 0) && (
+                <button
+                  onClick={() => { setSearch(''); setFilter('all'); setMinPoints(0); }}
+                  style={{ marginTop: 14, background: C.primary, color: '#fff', border: 'none', borderRadius: 20, padding: '7px 18px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           )}
         </div>

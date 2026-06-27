@@ -12,7 +12,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   success: '#10b981',
   sans: "'Hanken Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace",
@@ -181,7 +181,6 @@ export default function Profile() {
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 2 }}>TIER PROGRESS</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: C.text }}>
               {tier.label} Tier
               {nextTier && <span style={{ fontSize: 13, fontWeight: 500, color: C.textMuted, marginLeft: 8 }}>→ {nextTier.label}</span>}
@@ -199,7 +198,7 @@ export default function Profile() {
           </div>
         </div>
         <div style={{ height: 10, background: '#f2f3ff', borderRadius: 6, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${tierProgress}%`, background: `linear-gradient(90deg, ${C.primary} 0%, #5e9eff 100%)`, borderRadius: 6, transition: 'width 0.6s ease' }} />
+          <div style={{ height: '100%', width: '100%', background: `linear-gradient(90deg, ${C.primary} 0%, #5e9eff 100%)`, borderRadius: 6, transformOrigin: 'left', transform: `scaleX(${tierProgress / 100})`, transition: 'transform 0.6s ease' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11.5, color: C.textMuted, fontFamily: C.mono }}>
           <span>{tier.pts.toLocaleString()} pts</span>
@@ -212,7 +211,6 @@ export default function Profile() {
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 2 }}>ACHIEVEMENTS</div>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.text }}>Badges</h3>
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: C.textSec, fontFamily: C.mono }}>
@@ -254,14 +252,13 @@ export default function Profile() {
       {/* Skills breakdown */}
       {categories.length > 0 && (
         <div style={card}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 4 }}>EXPERTISE</div>
           <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 800, color: C.text }}>Skills Breakdown</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {categories.map(([cat, count]) => (
               <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ width: 100, fontSize: 12.5, color: C.textSec, textAlign: 'right', flexShrink: 0 }}>{cat}</span>
                 <div style={{ flex: 1, height: 12, background: '#f2f3ff', borderRadius: 6, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${(count / maxCat) * 100}%`, background: `linear-gradient(90deg, ${C.primary} 0%, #413ff4 100%)`, borderRadius: 6, transition: 'width 0.6s ease' }} />
+                  <div style={{ height: '100%', width: '100%', background: `linear-gradient(90deg, ${C.primary} 0%, #413ff4 100%)`, borderRadius: 6, transformOrigin: 'left', transform: `scaleX(${count / maxCat})`, transition: 'transform 0.6s ease' }} />
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 700, width: 28, textAlign: 'right', flexShrink: 0, fontFamily: C.mono }}>{count}</span>
               </div>
@@ -272,7 +269,6 @@ export default function Profile() {
 
       {/* Activity timeline */}
       <div style={card}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 4 }}>HISTORY</div>
         <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800, color: C.text }}>Activity Timeline</h3>
         {submissions.length === 0 ? (
           <div style={{ color: C.textMuted, fontSize: 14, textAlign: 'center', padding: '20px 0' }}>No submissions yet. Pick a challenge to get started!</div>

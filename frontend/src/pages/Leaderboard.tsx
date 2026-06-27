@@ -11,7 +11,7 @@ const C = {
   border: '#dae2fd',
   text: '#131b2e',
   textSec: '#454556',
-  textMuted: '#767588',
+  textMuted: '#545567',
   sans: "'Hanken Grotesk', sans-serif",
   mono: "'JetBrains Mono', monospace",
 };
@@ -64,7 +64,6 @@ export default function Leaderboard({ currentUserId }: Props) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <div style={{ fontSize: 13, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.05em', marginBottom: 2 }}>TEAM PERFORMANCE</div>
           <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: C.text, letterSpacing: '-0.4px' }}>
             {entries.length > 0 ? `Top ${entries.length} Contributors` : 'Leaderboard'}
           </h2>
