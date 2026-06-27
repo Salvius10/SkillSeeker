@@ -50,6 +50,14 @@ export const postSubmissionMessage = (id: string, message: string): Promise<Subm
 export const resubmitChallenge = (id: string, content: string, submission_type?: string) =>
   api.put(`/submissions/${id}/resubmit`, { content, submission_type }).then(r => r.data);
 
+// Challenge social thread
+export const getChallengeComments = (challengeId: string) =>
+  api.get(`/challenges/${challengeId}/comments`).then(r => r.data);
+export const postChallengeComment = (challengeId: string, message: string) =>
+  api.post(`/challenges/${challengeId}/comments`, { message }).then(r => r.data);
+export const toggleCommentLike = (challengeId: string, commentId: string) =>
+  api.post(`/challenges/${challengeId}/comments/${commentId}/like`).then(r => r.data);
+
 // Leaderboard
 export const getLeaderboard = (period?: 'all' | 'month') =>
   api.get('/leaderboard', { params: period === 'month' ? { period: 'month' } : undefined }).then(r => r.data);

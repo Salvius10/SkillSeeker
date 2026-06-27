@@ -19,9 +19,21 @@ export interface Challenge {
   created_by: string;
   created_at: string;
   entry_count?: number;
+  picked_by?: { id: string; name: string } | null;
   my_submission_status?: 'pending' | 'approved' | 'rejected' | null;
   my_submission_id?: string | null;
   my_submission_type?: string | null;
+}
+
+export interface ChallengeComment {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  author?: { id: string; name: string; team: string; role: string };
+  like_count: number;
+  my_like: boolean;
 }
 
 export interface Submission {

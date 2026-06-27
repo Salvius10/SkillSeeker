@@ -1,4 +1,4 @@
-import { LayoutGrid, Newspaper, Trophy, User, Bell, Plus, CheckSquare, BarChart2, LogOut } from 'lucide-react';
+import { LayoutGrid, Bookmark, Newspaper, Trophy, User, Bell, Plus, CheckSquare, BarChart2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 type Page = string;
@@ -85,20 +85,46 @@ export default function Sidebar({ page, setPage, unreadCount, pendingReviewCount
       <SectionLabel label={emp ? 'Navigate' : 'Admin'} />
 
       <nav aria-label="Main navigation" style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '2px 10px', flex: 1, overflowY: 'auto' }}>
-        {/* Employee nav */}
-        <button aria-current={page === 'challenges' ? 'page' : undefined} onClick={nav('challenges')} style={navBtn(page === 'challenges', emp)}><LayoutGrid size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Board</span></button>
-        <button aria-current={page === 'news' ? 'page' : undefined} onClick={nav('news')} style={navBtn(page === 'news', emp)}><Newspaper size={17} /><span style={{ flex: 1, textAlign: 'left' }}>News Feed</span></button>
-        <button aria-current={page === 'leaderboard' ? 'page' : undefined} onClick={nav('leaderboard')} style={navBtn(page === 'leaderboard', emp)}><Trophy size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Leaderboard</span></button>
-        <button aria-current={page === 'profile' ? 'page' : undefined} onClick={nav('profile')} style={navBtn(page === 'profile', emp)}><User size={17} /><span style={{ flex: 1, textAlign: 'left' }}>My Profile</span></button>
-        <button aria-current={page === 'notifications' ? 'page' : undefined} onClick={nav('notifications')} style={navBtn(page === 'notifications', emp)}><Bell size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Notifications</span><Badge n={unreadCount} /></button>
 
-        {/* Admin nav */}
-        <button aria-current={page === 'admin-challenges' ? 'page' : undefined} onClick={nav('admin-challenges')} style={navBtn(page === 'admin-challenges', !emp)}><LayoutGrid size={17} /><span style={{ flex: 1, textAlign: 'left' }}>All Challenges</span></button>
-        <button aria-current={page === 'admin-create' ? 'page' : undefined} onClick={nav('admin-create')} style={navBtn(page === 'admin-create', !emp)}><Plus size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Create Challenge</span></button>
-        <button aria-current={page === 'admin-review' ? 'page' : undefined} onClick={nav('admin-review')} style={navBtn(page === 'admin-review', !emp)}><CheckSquare size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Submission Review</span><Badge n={pendingReviewCount} /></button>
-        <button aria-current={page === 'admin-analytics' ? 'page' : undefined} onClick={nav('admin-analytics')} style={navBtn(page === 'admin-analytics', !emp)}><BarChart2 size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Analytics</span></button>
-        <button aria-current={page === 'leaderboard' && !emp ? 'page' : undefined} onClick={nav('leaderboard')} style={navBtn(page === 'leaderboard', !emp)}><Trophy size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Leaderboard</span></button>
-        <button aria-current={page === 'notifications' && !emp ? 'page' : undefined} onClick={nav('notifications')} style={navBtn(page === 'notifications', !emp)}><Bell size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Notifications</span><Badge n={unreadCount} /></button>
+        {/* ── Employee nav ─────────────────────────── */}
+        <button aria-current={page === 'challenges' ? 'page' : undefined} onClick={nav('challenges')} style={navBtn(page === 'challenges', emp)}>
+          <LayoutGrid size={17} /><span style={{ flex: 1, textAlign: 'left' }}>All Challenges</span>
+        </button>
+        <button aria-current={page === 'my-challenges' ? 'page' : undefined} onClick={nav('my-challenges')} style={navBtn(page === 'my-challenges', emp)}>
+          <Bookmark size={17} /><span style={{ flex: 1, textAlign: 'left' }}>My Challenges</span>
+        </button>
+        <button aria-current={page === 'news' ? 'page' : undefined} onClick={nav('news')} style={navBtn(page === 'news', emp)}>
+          <Newspaper size={17} /><span style={{ flex: 1, textAlign: 'left' }}>News Feed</span>
+        </button>
+        <button aria-current={page === 'leaderboard' && emp ? 'page' : undefined} onClick={nav('leaderboard')} style={navBtn(page === 'leaderboard' && emp, emp)}>
+          <Trophy size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Leaderboard</span>
+        </button>
+        <button aria-current={page === 'profile' ? 'page' : undefined} onClick={nav('profile')} style={navBtn(page === 'profile', emp)}>
+          <User size={17} /><span style={{ flex: 1, textAlign: 'left' }}>My Profile</span>
+        </button>
+        <button aria-current={page === 'notifications' && emp ? 'page' : undefined} onClick={nav('notifications')} style={navBtn(page === 'notifications' && emp, emp)}>
+          <Bell size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Notifications</span><Badge n={unreadCount} />
+        </button>
+
+        {/* ── Admin nav ────────────────────────────── */}
+        <button aria-current={page === 'admin-challenges' ? 'page' : undefined} onClick={nav('admin-challenges')} style={navBtn(page === 'admin-challenges', !emp)}>
+          <LayoutGrid size={17} /><span style={{ flex: 1, textAlign: 'left' }}>All Challenges</span>
+        </button>
+        <button aria-current={page === 'admin-create' ? 'page' : undefined} onClick={nav('admin-create')} style={navBtn(page === 'admin-create', !emp)}>
+          <Plus size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Create Challenge</span>
+        </button>
+        <button aria-current={page === 'admin-review' ? 'page' : undefined} onClick={nav('admin-review')} style={navBtn(page === 'admin-review', !emp)}>
+          <CheckSquare size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Submission Review</span><Badge n={pendingReviewCount} />
+        </button>
+        <button aria-current={page === 'admin-analytics' ? 'page' : undefined} onClick={nav('admin-analytics')} style={navBtn(page === 'admin-analytics', !emp)}>
+          <BarChart2 size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Analytics</span>
+        </button>
+        <button aria-current={page === 'leaderboard' && !emp ? 'page' : undefined} onClick={nav('leaderboard')} style={navBtn(page === 'leaderboard' && !emp, !emp)}>
+          <Trophy size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Leaderboard</span>
+        </button>
+        <button aria-current={page === 'notifications' && !emp ? 'page' : undefined} onClick={nav('notifications')} style={navBtn(page === 'notifications' && !emp, !emp)}>
+          <Bell size={17} /><span style={{ flex: 1, textAlign: 'left' }}>Notifications</span><Badge n={unreadCount} />
+        </button>
       </nav>
 
       {/* User footer */}

@@ -2,15 +2,16 @@ import { Bell, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const PAGE_META: Record<string, { title: string; sub: string }> = {
-  challenges: { title: 'Board', sub: 'Pick up work, earn points' },
-  news: { title: 'News Feed', sub: "What's happening across the org" },
-  leaderboard: { title: 'Leaderboard', sub: 'All-time and monthly team rankings' },
-  profile: { title: 'My Profile', sub: 'Your activity and history' },
-  notifications: { title: 'Notifications', sub: 'Activity updates' },
-  'admin-challenges': { title: 'All Challenges', sub: 'Manage and monitor every challenge' },
-  'admin-create': { title: 'Create Challenge', sub: 'Post a new challenge for the team' },
-  'admin-review': { title: 'Submission Review', sub: 'Review and approve submissions' },
-  'admin-analytics': { title: 'Analytics', sub: 'Program health at a glance' },
+  challenges:        { title: 'All Challenges',    sub: 'Browse and pick challenges to earn points' },
+  'my-challenges':   { title: 'My Challenges',     sub: 'Challenges you have claimed' },
+  news:              { title: 'News Feed',          sub: "What's happening across the org" },
+  leaderboard:       { title: 'Leaderboard',        sub: 'Rankings based on total points earned' },
+  profile:           { title: 'My Profile',         sub: 'Your activity, streaks and badges' },
+  notifications:     { title: 'Notifications',      sub: 'Activity updates' },
+  'admin-challenges': { title: 'All Challenges',   sub: 'Manage and monitor every challenge' },
+  'admin-create':    { title: 'Create Challenge',   sub: 'Post a new challenge for the team' },
+  'admin-review':    { title: 'Submission Review',  sub: 'Review and approve submissions' },
+  'admin-analytics': { title: 'Analytics',          sub: 'Program health at a glance' },
 };
 
 interface Props {

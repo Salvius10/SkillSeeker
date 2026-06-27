@@ -36,6 +36,21 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       entry_count: Array.isArray(c.entry_count) ? (c.entry_count[0]?.count ?? 0) : (c.entry_count ?? 0),
     }));
 
+  // Fetch all picks to enrich challenges with picker info
+  const { data: pickRows } = await supabase
+    .from('picks')
+    .select('challenge_id, picker:users!user_id(id, name)');
+
+  const pickMap: Record<string, { id: string; name: string }> = {};
+  for (const p of (pickRows || [])) {
+    if (p.picker && typeof p.picker === 'object' && !Array.isArray(p.picker)) {
+      pickMap[p.challenge_id] = p.picker as { id: string; name: string };
+    }
+  }
+
+  const withPicks = (rows: ReturnType<typeof flatten>) =>
+    rows.map(c => ({ ...c, picked_by: pickMap[c.id] || null }));
+
   // If employee, attach their own submission status, id, and type
   if (req.user!.role === 'employee') {
     const { data: subs } = await supabase
@@ -44,7 +59,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       .eq('user_id', req.user!.id);
 
     const subMap = Object.fromEntries((subs || []).map(s => [s.challenge_id, { id: s.id, status: s.status, type: s.submission_type }]));
-    const enriched = flatten(data).map(c => ({
+    const enriched = withPicks(flatten(data)).map(c => ({
       ...c,
       my_submission_status: subMap[c.id]?.status || null,
       my_submission_id: subMap[c.id]?.id || null,
@@ -54,7 +69,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  res.json(flatten(data));
+  res.json(withPicks(flatten(data)));
 });
 
 router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) => {
@@ -92,6 +107,60 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
   }
 
   res.status(201).json(data);
+});
+
+// ── Social thread (challenge comments, visible to all) ────────────
+
+router.get('/:id/comments', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { data, error } = await supabase
+    .from('challenge_comments')
+    .select(`*, author:users!user_id(id, name, team, role), likes:challenge_comment_likes(user_id)`)
+    .eq('challenge_id', req.params.id)
+    .order('created_at', { ascending: true });
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+
+  res.json((data || []).map(c => ({
+    ...c,
+    like_count: Array.isArray(c.likes) ? c.likes.length : 0,
+    my_like: Array.isArray(c.likes) ? c.likes.some((l: { user_id: string }) => l.user_id === userId) : false,
+    likes: undefined,
+  })));
+});
+
+router.post('/:id/comments', requireAuth, async (req: Request, res: Response) => {
+  const { message } = req.body;
+  if (!message?.trim()) { res.status(400).json({ error: 'message is required' }); return; }
+
+  const { data, error } = await supabase
+    .from('challenge_comments')
+    .insert({ challenge_id: req.params.id, user_id: req.user!.id, message: message.trim() })
+    .select(`*, author:users!user_id(id, name, team, role)`)
+    .single();
+
+  if (error) { res.status(500).json({ error: error.message }); return; }
+  res.status(201).json({ ...data, like_count: 0, my_like: false });
+});
+
+router.post('/:id/comments/:commentId/like', requireAuth, async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const { commentId } = req.params;
+
+  const { data: existing } = await supabase
+    .from('challenge_comment_likes')
+    .select('id')
+    .eq('comment_id', commentId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from('challenge_comment_likes').delete().eq('id', existing.id);
+    res.json({ liked: false });
+  } else {
+    await supabase.from('challenge_comment_likes').insert({ comment_id: commentId, user_id: userId });
+    res.json({ liked: true });
+  }
 });
 
 router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
