@@ -4,6 +4,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { getNotifications, markNotificationRead, markAllRead, subscribeToNotifications } from '../api/client';
 import type { Notification } from '../types';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   primary: '#1a00d9',
@@ -61,6 +62,7 @@ type Filter = 'all' | 'submissions' | 'reactions' | 'challenges';
 
 export default function Notifications() {
   const { clearUnread } = useAppContext();
+  const { token } = useAuth();
   const navigate = useNavigate();
   const onRead = clearUnread;
   const onNavigate = (path: string) => navigate(path.startsWith('/') ? path : `/${path}`);
@@ -70,11 +72,12 @@ export default function Notifications() {
 
   useEffect(() => {
     getNotifications().then(setNotifs).finally(() => setLoading(false));
-    const es = subscribeToNotifications(incoming => {
+    if (!token) return;
+    const es = subscribeToNotifications(token, (incoming: Notification) => {
       setNotifs(prev => [incoming, ...prev]);
     });
     return () => es.close();
-  }, []);
+  }, [token]);
 
   const markRead = async (id: string) => {
     await markNotificationRead(id);

@@ -1,23 +1,28 @@
 import axios from 'axios';
+import { supabase } from '../lib/supabase';
 import type { NewsComment, Notification, SubmissionMessage } from '../types';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
 
 const api = axios.create({ baseURL: BASE_URL });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ss_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use(async (config) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    config.headers.Authorization = `Bearer ${session.access_token}`;
+  }
   return config;
 });
 
-// On 401, clear storage and dispatch an event — AuthContext listens and navigates to login
 api.interceptors.response.use(
   res => res,
-  err => {
+  async err => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('ss_token');
-      window.dispatchEvent(new CustomEvent('auth:logout'));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // Active session but got 401 — sign out so the user can re-authenticate
+        await supabase.auth.signOut();
+      }
     }
     return Promise.reject(err);
   }
@@ -26,10 +31,8 @@ api.interceptors.response.use(
 export default api;
 
 // Auth
-export const register = (body: { email: string; password: string; name: string; team: string; role?: string }) =>
-  api.post('/auth/register', body).then(r => r.data);
-export const login = (email: string, password: string) =>
-  api.post('/auth/login', { email, password }).then(r => r.data);
+export const syncMe = (token: string) =>
+  axios.post(`${BASE_URL}/auth/sync`, {}, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.data);
 export const getMe = () => api.get('/auth/me').then(r => r.data);
 
 // Challenges
@@ -91,9 +94,8 @@ export const getNotifications = () => api.get('/notifications').then(r => r.data
 export const markAllRead = () => api.put('/notifications/read-all').then(r => r.data);
 export const markNotificationRead = (id: string) =>
   api.put(`/notifications/${id}/read`).then(r => r.data);
-export const subscribeToNotifications = (callback: (data: Notification) => void): EventSource => {
-  const token = localStorage.getItem('ss_token');
-  const es = new EventSource(`${BASE_URL}/notifications/stream?token=${encodeURIComponent(token ?? '')}`);
+export const subscribeToNotifications = (token: string, callback: (data: Notification) => void): EventSource => {
+  const es = new EventSource(`${BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`);
   es.onmessage = (e) => { try { callback(JSON.parse(e.data)); } catch {} };
   return es;
 };

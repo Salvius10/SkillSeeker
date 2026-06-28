@@ -38,7 +38,15 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     .insert({ challenge_id, user_id: req.user!.id })
     .select()
     .single();
-  if (error) { console.error('[picks.POST]', error); res.status(500).json({ error: 'Could not pick challenge' }); return; }
+  if (error) {
+    if (error.code === '23505') {
+      res.status(409).json({ error: 'This challenge has already been picked by another team member' });
+    } else {
+      console.error('[picks.POST]', error);
+      res.status(500).json({ error: 'Could not pick challenge' });
+    }
+    return;
+  }
 
   const { data: challenge } = await supabase.from('challenges').select('title').eq('id', challenge_id).single();
   await notifyAdmins('challenge_picked', `${req.user!.name} picked: ${challenge?.title ?? 'a challenge'}`);

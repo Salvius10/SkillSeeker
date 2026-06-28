@@ -62,6 +62,7 @@ export default function Challenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [myPicks, setMyPicks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [modalChallenge, setModalChallenge] = useState<Challenge | null>(null);
@@ -72,6 +73,7 @@ export default function Challenges() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const serverFilter = (filter === 'all' || filter === 'inProgress') ? undefined : filter;
       const [data, picks] = await Promise.all([
@@ -80,6 +82,8 @@ export default function Challenges() {
       ]);
       setChallenges(data);
       setMyPicks(picks);
+    } catch {
+      setLoadError('Failed to load challenges. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -238,6 +242,10 @@ export default function Challenges() {
             UP TO {maxUrgentPts} PTS
           </span>
         </div>
+      )}
+
+      {loadError && (
+        <div style={{ background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 12, padding: '12px 18px', fontSize: 13.5, color: '#d32f2f', marginBottom: 16 }}>{loadError}</div>
       )}
 
       {/* Cards */}

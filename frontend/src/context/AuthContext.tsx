@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { User } from '../types';
-import { getMe } from '../api/client';
+import { supabase } from '../lib/supabase';
+import { syncMe, getMe } from '../api/client';
 
 interface AuthCtx {
   user: User | null;
   token: string | null;
-  login: (token: string, user: User) => void;
-  logout: () => void;
+  loading: boolean;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -14,37 +15,54 @@ const Ctx = createContext<AuthCtx>(null!);
 export const useAuth = () => useContext(Ctx);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('ss_token'));
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (token) {
-      getMe().then(setUser).catch(() => { setToken(null); localStorage.removeItem('ss_token'); });
+  async function handleSession(accessToken: string) {
+    setToken(accessToken);
+    try {
+      await syncMe(accessToken);
+      const u = await getMe();
+      setUser(u);
+    } catch {
+      setUser(null);
     }
-  }, [token]);
+  }
 
-  // Handle forced logout dispatched by the API client on 401
   useEffect(() => {
-    const handle = () => { setToken(null); setUser(null); };
-    window.addEventListener('auth:logout', handle);
-    return () => window.removeEventListener('auth:logout', handle);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.access_token) {
+        await handleSession(session.access_token);
+      }
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.access_token) {
+        await handleSession(session.access_token);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setToken(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = (t: string, u: User) => {
-    localStorage.setItem('ss_token', t);
-    setToken(t);
-    setUser(u);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('ss_token');
-    setToken(null);
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
+    setToken(null);
   };
 
   const refreshUser = async () => {
     try { const u = await getMe(); setUser(u); } catch {}
   };
 
-  return <Ctx.Provider value={{ user, token, login, logout, refreshUser }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ user, token, loading, logout, refreshUser }}>
+      {children}
+    </Ctx.Provider>
+  );
 }

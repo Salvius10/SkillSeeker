@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/context/AuthContext"
-import { login as apiLogin } from "@/api/client"
+import { supabase } from "@/lib/supabase"
 
-/* ---------- Floating character blobs ---------- */
 interface CharBlobProps {
   char: string
   style: React.CSSProperties
@@ -34,53 +29,34 @@ const blobs: CharBlobProps[] = [
   { char: "⬡",  style: { top: "70%", right: "30%", fontSize: 48 }, animClass: "animate-float-a" },
 ]
 
-/* ---------- Main Component ---------- */
 export function Component() {
-  const { login } = useAuth()
-  const [mode, setMode] = useState<"login" | "register">("login")
-  const [email, setEmail]       = useState("")
-  const [password, setPassword] = useState("")
-  const [name, setName]         = useState("")
-  const [team, setTeam]         = useState("")
   const [error, setError]       = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [mounted, setMounted]   = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleMicrosoftLogin = async () => {
     setError("")
     setIsLoading(true)
     try {
-      if (mode === "register") {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password, team }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? "Registration failed")
-        login(data.token, data.user)
-      } else {
-        const data = await apiLogin(email, password)
-        login(data.token, data.user)
-      }
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'azure',
+        options: {
+          redirectTo: window.location.origin,
+          scopes: 'email profile openid',
+        },
+      })
+      if (oauthError) throw oauthError
+      // Page will redirect — no further action needed here
     } catch (err: unknown) {
-      setError(
-        (err as { response?: { data?: { error?: string } }; message?: string })
-          ?.response?.data?.error ??
-        (err as { message?: string })?.message ??
-        "Invalid email or password"
-      )
-    } finally {
+      setError((err as { message?: string })?.message ?? "Sign-in failed. Please try again.")
       setIsLoading(false)
     }
   }
 
   return (
     <>
-      {/* Keyframe styles injected once */}
       <style>{`
         @keyframes float-a {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
@@ -109,6 +85,20 @@ export function Component() {
         .animate-float-c { animation: float-c 6s ease-in-out infinite; }
         .slide-up { animation: slide-up 0.55s cubic-bezier(0.22,1,0.36,1) both; }
         .fade-in  { animation: fade-in 0.4s ease both; }
+        .ms-btn {
+          display: flex; align-items: center; justify-content: center; gap: 12px;
+          width: 100%; padding: 13px 20px;
+          background: #fff; border: 1.5px solid #d1d5db; border-radius: 10px;
+          font-size: 15px; font-weight: 600; color: #111827;
+          cursor: pointer; transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+          font-family: 'Hanken Grotesk', sans-serif;
+        }
+        .ms-btn:hover:not(:disabled) {
+          background: #f9fafb; border-color: #9ca3af;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .ms-btn:active:not(:disabled) { transform: scale(0.98); }
+        .ms-btn:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
 
       <div className="flex h-screen w-screen overflow-hidden bg-white">
@@ -120,42 +110,27 @@ export function Component() {
             background: "linear-gradient(145deg, #1a00d9 0%, #2219f5 60%, #4b35ff 100%)",
           }}
         >
-          {/* Animated character blobs */}
           {blobs.map((b, i) => <CharBlob key={i} {...b} />)}
 
-          {/* Centered content */}
           <div className="relative z-10 flex flex-col items-center text-center px-10">
-            {/* Logo */}
             <div
               className="flex items-center justify-center rounded-2xl font-black text-white mb-6"
-              style={{
-                width: 80, height: 80,
-                background: "#fe6e06",
-                fontSize: 40,
-                boxShadow: "0 8px 32px rgba(254,110,6,0.45)",
-              }}
+              style={{ width: 80, height: 80, background: "#fe6e06", fontSize: 40, boxShadow: "0 8px 32px rgba(254,110,6,0.45)" }}
             >
               S
             </div>
 
             <h1 className="text-white font-black text-4xl mb-2 tracking-tight">SkillSeeker</h1>
-            <p className="text-white/60 text-xs uppercase tracking-widest mb-10">
-              Challenge Hub
-            </p>
+            <p className="text-white/60 text-xs uppercase tracking-widest mb-10">Challenge Hub</p>
 
-            {/* Feature bullets */}
             {[
               { emoji: "🎯", text: "Pick challenges that match your skills" },
               { emoji: "⚡", text: "Earn points for every approved submission" },
               { emoji: "🏆", text: "Climb the leaderboard and earn badges" },
             ].map(({ emoji, text }) => (
               <div key={text} className="flex items-center gap-3 mb-4 w-full max-w-xs">
-                <div
-                  className="flex items-center justify-center shrink-0 rounded-full text-base"
-                  style={{
-                    width: 36, height: 36,
-                    background: "rgba(255,255,255,0.12)",
-                  }}
+                <div className="flex items-center justify-center shrink-0 rounded-full text-base"
+                  style={{ width: 36, height: 36, background: "rgba(255,255,255,0.12)" }}
                 >
                   {emoji}
                 </div>
@@ -167,112 +142,42 @@ export function Component() {
 
         {/* ── Right panel ── */}
         <div className="flex-1 flex items-center justify-center bg-white px-8">
-          <div
-            className={cn("w-full max-w-sm", mounted ? "slide-up" : "opacity-0")}
-          >
-            {/* Header */}
+          <div className={cn("w-full max-w-sm", mounted ? "slide-up" : "opacity-0")}>
             <div className="mb-8">
-              <h2 className="text-3xl font-black text-gray-900 mb-1">
-                {mode === "login" ? "Welcome back" : "Create account"}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {mode === "login"
-                  ? "Sign in to your account to continue"
-                  : "Join your team's challenge platform"}
-              </p>
+              <h2 className="text-3xl font-black text-gray-900 mb-1">Welcome</h2>
+              <p className="text-sm text-gray-500">Sign in with your Microsoft work account to continue</p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === "register" && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="name">Full name</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="Your name"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      required
-                      autoComplete="name"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="team">Team</Label>
-                    <Input
-                      id="team"
-                      type="text"
-                      placeholder="e.g. Platform, DevOps, Security"
-                      value={team}
-                      onChange={e => setTeam(e.target.value)}
-                      autoComplete="organization"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
+            <button
+              className="ms-btn"
+              onClick={handleMicrosoftLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span
+                  className="inline-block w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full"
+                  style={{ animation: "spin 0.7s linear infinite" }}
                 />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                />
-              </div>
-
-
-              {error && (
-                <div className="fade-in rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
-                  {error}
-                </div>
+              ) : (
+                /* Microsoft logo SVG */
+                <svg width="20" height="20" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
               )}
+              {isLoading ? "Redirecting…" : "Sign in with Microsoft"}
+            </button>
 
-              <Button
-                type="submit"
-                className="w-full h-11 text-base font-semibold"
-                disabled={isLoading}
-                style={{ background: "#1a00d9" }}
-              >
-                {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                      style={{ animation: "spin 0.7s linear infinite" }}
-                    />
-                    {mode === "login" ? "Signing in…" : "Creating account…"}
-                  </span>
-                ) : mode === "login" ? "Sign in" : "Create account"}
-              </Button>
-            </form>
+            {error && (
+              <div className="fade-in mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+                {error}
+              </div>
+            )}
 
-            {/* Toggle */}
-            <p className="mt-6 text-center text-sm text-gray-500">
-              {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-              <button
-                type="button"
-                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError("") }}
-                className="font-semibold text-[#1a00d9] hover:underline"
-              >
-                {mode === "login" ? "Sign up" : "Sign in"}
-              </button>
+            <p className="mt-8 text-center text-xs text-gray-400">
+              Access is restricted to your organisation's Microsoft accounts.
             </p>
           </div>
         </div>

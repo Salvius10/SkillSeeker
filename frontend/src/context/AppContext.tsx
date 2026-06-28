@@ -18,13 +18,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
 
-  // Fetch accurate unread count on login, then increment via SSE
   useEffect(() => {
     if (!token) { setUnreadCount(0); return; }
     getUnreadCount().then(setUnreadCount).catch(() => {});
-    const es = subscribeToNotifications((notif: Notification) => {
+    const es = subscribeToNotifications(token, (notif: Notification) => {
       setUnreadCount(c => c + 1);
-      // Admin pending queue goes up on new submissions/resubmissions
       if (user?.role === 'admin' && (notif.type === 'new_submission' || notif.type === 'resubmission')) {
         setPendingReviewCount(c => c + 1);
       }
@@ -32,7 +30,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => es.close();
   }, [token, user?.role]);
 
-  // Fetch initial pending count for admins (no polling — SSE handles increments above)
   useEffect(() => {
     if (!token || user?.role !== 'admin') { setPendingReviewCount(0); return; }
     getSubmissions()

@@ -61,7 +61,7 @@ router.post('/:id/react', requireAuth, async (req: Request, res: Response) => {
     .eq('post_id', req.params.id)
     .eq('user_id', req.user!.id)
     .eq('type', type)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     await supabase.from('reactions').delete().eq('id', existing.id);
@@ -102,7 +102,7 @@ router.post('/:id/comments', requireAuth, async (req: Request, res: Response) =>
 
   const { data: post } = await supabase.from('news_posts').select('user_id, title').eq('id', req.params.id).single();
   if (post && post.user_id !== req.user!.id) {
-    await notify(post.user_id, 'comment', `${req.user!.name} commented on your post: ${post.title}`);
+    await notify(post.user_id, 'reaction_comment', `${req.user!.name} commented on your post: ${post.title}`);
   }
 
   res.status(201).json(data);

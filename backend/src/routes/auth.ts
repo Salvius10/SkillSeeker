@@ -1,102 +1,61 @@
 import { Router, Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import rateLimit from 'express-rate-limit';
 import { supabase } from '../db';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
-const MAX_NAME = 100;
-const MAX_EMAIL = 254;
-const MAX_PASSWORD = 128;
-const MAX_TEAM = 100;
+// Called by the frontend after every OAuth login to ensure the user exists in our DB.
+// Verifies the Supabase JWT directly (no requireAuth) because the user may not be in
+// our users table yet on first sign-in.
+router.post('/sync', async (req: Request, res: Response) => {
+  const raw = req.headers.authorization?.slice(7);
+  if (!raw) { res.status(401).json({ error: 'Missing token' }); return; }
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many attempts. Please wait 15 minutes before trying again.' },
-  skipSuccessfulRequests: true,
-});
-
-router.post('/register', authLimiter, async (req: Request, res: Response) => {
-  const { email, password, name, team } = req.body;
-  if (!email || !password || !name) {
-    res.status(400).json({ error: 'email, password and name are required' });
-    return;
-  }
-  if (typeof email !== 'string' || email.length > MAX_EMAIL) {
-    res.status(400).json({ error: 'Invalid email' }); return;
-  }
-  if (typeof password !== 'string' || password.length < 8 || password.length > MAX_PASSWORD) {
-    res.status(400).json({ error: 'Password must be 8–128 characters' }); return;
-  }
-  if (typeof name !== 'string' || name.trim().length === 0 || name.length > MAX_NAME) {
-    res.status(400).json({ error: 'Name must be 1–100 characters' }); return;
-  }
-  if (team && (typeof team !== 'string' || team.length > MAX_TEAM)) {
-    res.status(400).json({ error: 'Team name must be 100 characters or fewer' }); return;
+  let sub: string, email: string, meta: Record<string, string>;
+  try {
+    const payload = jwt.verify(raw, process.env.SUPABASE_JWT_SECRET!) as {
+      sub: string; email?: string; user_metadata?: Record<string, string>;
+    };
+    sub = payload.sub;
+    email = payload.email ?? '';
+    meta = payload.user_metadata ?? {};
+  } catch {
+    res.status(401).json({ error: 'Invalid token' }); return;
   }
 
-  let hash: string;
-  try { hash = await bcrypt.hash(password, 10); }
-  catch { res.status(500).json({ error: 'Registration failed. Try again.' }); return; }
+  // Return existing user without touching the row (preserves manually-set role)
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id, email, name, role, team, points')
+    .eq('id', sub)
+    .maybeSingle();
 
+  if (existing) { res.json(existing); return; }
+
+  // First login: create the user record
+  const name = meta.full_name ?? meta.name ?? email.split('@')[0] ?? 'User';
   const { data, error } = await supabase
     .from('users')
-    .insert({ email: email.toLowerCase().trim(), password_hash: hash, name: name.trim(), team: team?.trim() || '', role: 'employee' })
+    .insert({ id: sub, email, name, role: 'employee', password_hash: '' })
     .select('id, email, name, role, team, points')
     .single();
+
   if (error) {
-    // Surface duplicate-email conflict; hide all other DB internals
+    // Race condition: another request created it between our select and insert
     if (error.code === '23505') {
-      res.status(400).json({ error: 'An account with this email already exists' });
-    } else {
-      console.error('[auth.POST register]', error);
-      res.status(500).json({ error: 'Registration failed. Try again.' });
+      const { data: retry } = await supabase
+        .from('users')
+        .select('id, email, name, role, team, points')
+        .eq('id', sub)
+        .single();
+      if (retry) { res.json(retry); return; }
     }
-    return;
+    console.error('[auth.sync]', error);
+    res.status(500).json({ error: 'Could not create user profile' }); return;
   }
 
-  const token = jwt.sign(
-    { id: data.id, email: data.email, name: data.name, role: data.role },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
-  );
-  res.json({ token, user: data });
-});
-
-router.post('/login', authLimiter, async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(401).json({ error: 'Invalid credentials' }); return;
-  }
-
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, name, role, team, points, password_hash')
-    .eq('email', typeof email === 'string' ? email.toLowerCase().trim() : '')
-    .single();
-  if (error || !data) {
-    res.status(401).json({ error: 'Invalid credentials' }); return;
-  }
-
-  let valid: boolean;
-  try { valid = await bcrypt.compare(password, data.password_hash); }
-  catch { res.status(401).json({ error: 'Invalid credentials' }); return; }
-  if (!valid) {
-    res.status(401).json({ error: 'Invalid credentials' }); return;
-  }
-
-  const { password_hash: _, ...user } = data;
-  const token = jwt.sign(
-    { id: user.id, email: user.email, name: user.name, role: user.role },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
-  );
-  res.json({ token, user });
+  res.status(201).json(data);
 });
 
 router.get('/me', requireAuth, async (req: Request, res: Response) => {

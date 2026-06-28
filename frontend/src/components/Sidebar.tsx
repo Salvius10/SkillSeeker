@@ -84,6 +84,7 @@ export default function Sidebar({ unreadCount, pendingReviewCount }: Props) {
   return (
     <div style={{
       width: 272,
+      height: '100%',
       background: 'linear-gradient(165deg, #08006e 0%, #1200a8 25%, #1a00d9 55%, #2014ee 80%, #2c1fff 100%)',
       display: 'flex', flexDirection: 'column', color: '#fff',
       overflow: 'hidden', flexShrink: 0, position: 'relative',

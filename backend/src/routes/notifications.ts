@@ -3,38 +3,48 @@ import jwt from 'jsonwebtoken';
 import { supabase } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { sseManager } from '../lib/sseManager';
-import type { JwtPayload } from '../types/index';
 
 const router = Router();
 
-// SSE stream — registered before /:id patterns
-router.get('/stream', (req: Request, res: Response) => {
+// SSE stream — token comes from Authorization header or ?token= query (EventSource can't set headers)
+router.get('/stream', async (req: Request, res: Response) => {
   const raw = (req.headers.authorization?.slice(7)) || (req.query.token as string);
   if (!raw) { res.status(401).end(); return; }
+
+  let userId: string;
   try {
-    const payload = jwt.verify(raw, process.env.JWT_SECRET!) as JwtPayload;
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.socket?.setNoDelay(true);
-    res.flushHeaders();
-    sseManager.add(payload.id, res);
-
-    const heartbeat = setInterval(() => {
-      try { res.write(':\n\n'); } catch { clearInterval(heartbeat); }
-    }, 25000);
-
-    req.on('close', () => {
-      clearInterval(heartbeat);
-      sseManager.remove(payload.id, res);
-    });
+    const payload = jwt.verify(raw, process.env.SUPABASE_JWT_SECRET!) as { sub: string };
+    userId = payload.sub;
   } catch {
-    res.status(401).end();
+    res.status(401).end(); return;
   }
+
+  // Verify user exists before opening the stream
+  const { data: exists } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!exists) { res.status(401).end(); return; }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.socket?.setNoDelay(true);
+  res.flushHeaders();
+  sseManager.add(userId, res);
+
+  const heartbeat = setInterval(() => {
+    try { res.write(':\n\n'); } catch { clearInterval(heartbeat); }
+  }, 25000);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseManager.remove(userId, res);
+  });
 });
 
-// Lightweight unread count — used by the nav badge on mount
 router.get('/unread-count', requireAuth, async (req: Request, res: Response) => {
   const { count, error } = await supabase
     .from('notifications')

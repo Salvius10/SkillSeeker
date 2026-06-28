@@ -42,6 +42,7 @@ export default function MyChallenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [myPicks, setMyPicks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [unpickError, setUnpickError] = useState('');
   const [modalChallenge, setModalChallenge] = useState<Challenge | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -51,10 +52,13 @@ export default function MyChallenges() {
 
   const load = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const [all, picks] = await Promise.all([getChallenges(), getMyPicks()]);
       setMyPicks(picks);
       setChallenges(all.filter((c: Challenge) => picks.includes(c.id)));
+    } catch {
+      setLoadError('Failed to load your challenges. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -110,6 +114,10 @@ export default function MyChallenges() {
         </div>
         <p style={{ margin: 0, fontSize: 14, color: C.textMuted }}>Challenges you've claimed — work on them, join the discussion, and submit your solution.</p>
       </div>
+
+      {loadError && (
+        <div style={{ background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 10, padding: '10px 16px', fontSize: 13.5, color: '#d32f2f', marginBottom: 8 }}>{loadError}</div>
+      )}
 
       {unpickError && (
         <div style={{ background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 10, padding: '10px 16px', fontSize: 13.5, color: '#d32f2f', marginBottom: 8 }}>{unpickError}</div>

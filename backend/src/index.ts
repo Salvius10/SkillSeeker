@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Validate required env vars at startup — fail fast rather than 500 at runtime
-const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'JWT_SECRET', 'FRONTEND_URL'] as const;
+const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_JWT_SECRET', 'FRONTEND_URL'] as const;
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`[FATAL] Missing required environment variable: ${key}`);
@@ -31,10 +31,11 @@ app.set('trust proxy', 1);
 // Structured request logging
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
+  const path = req.originalUrl.split('?')[0]; // capture before Express rewrites req.path for sub-routers
   res.on('finish', () => {
     const ms = Date.now() - start;
     const level = res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN' : 'INFO';
-    console.log(JSON.stringify({ level, method: req.method, path: req.path, status: res.statusCode, ms, ip: req.ip }));
+    console.log(JSON.stringify({ level, method: req.method, path, status: res.statusCode, ms, ip: req.ip }));
   });
   next();
 });

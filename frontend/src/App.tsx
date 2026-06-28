@@ -24,7 +24,8 @@ const Spinner = () => (
 );
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
@@ -98,13 +99,13 @@ function Layout() {
 }
 
 export default function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
+        element={loading ? <Spinner /> : user ? <Navigate to="/" replace /> : <Login />}
       />
       <Route
         element={

@@ -109,25 +109,15 @@ export default function AllChallenges() {
   return (
     <div style={{ maxWidth: 1060, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
 
-      {/* Stat tiles — hero + supporting */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 14 }}>
-        {/* Hero tile */}
-        <div style={{ ...card, padding: '22px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 116 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: `${C.primary}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <LayoutGrid size={20} color={C.primary} />
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: C.mono }}>Total Challenges</span>
-          </div>
-          <div style={{ fontSize: 52, fontWeight: 900, color: C.primary, fontFamily: C.mono, lineHeight: 1, letterSpacing: '-2px', marginTop: 8 }}>{challenges.length}</div>
-        </div>
-        {/* Supporting tiles */}
+      {/* Stat tiles — uniform 4-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         {[
-          { label: 'Open', val: open, color: C.success, icon: <Check size={17} color={C.success} /> },
-          { label: 'Urgent', val: urgent, color: C.orange, icon: <AlertTriangle size={17} color={C.orange} /> },
-          { label: 'Points Pool', val: totalPts.toLocaleString(), color: '#413ff4', icon: <Coins size={17} color='#413ff4' /> },
+          { label: 'Total Challenges', val: challenges.length, color: C.primary, icon: <LayoutGrid size={18} color={C.primary} /> },
+          { label: 'Open', val: open, color: C.success, icon: <Check size={18} color={C.success} /> },
+          { label: 'Urgent', val: urgent, color: C.orange, icon: <AlertTriangle size={18} color={C.orange} /> },
+          { label: 'Points Pool', val: totalPts.toLocaleString(), color: '#413ff4', icon: <Coins size={18} color='#413ff4' /> },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: '20px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 116 }}>
+          <div key={s.label} style={{ ...card, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {s.icon}
             </div>
