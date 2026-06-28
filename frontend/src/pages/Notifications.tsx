@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck } from 'lucide-react';
 import { getNotifications, markNotificationRead, markAllRead, subscribeToNotifications } from '../api/client';
 import type { Notification } from '../types';
+import { useAppContext } from '../context/AppContext';
 
 const C = {
   primary: '#1a00d9',
@@ -57,12 +59,11 @@ function groupByTime(notifs: Notification[]) {
 
 type Filter = 'all' | 'submissions' | 'reactions' | 'challenges';
 
-interface Props {
-  onRead: () => void;
-  onNavigate?: (page: string) => void;
-}
-
-export default function Notifications({ onRead, onNavigate }: Props) {
+export default function Notifications() {
+  const { clearUnread } = useAppContext();
+  const navigate = useNavigate();
+  const onRead = clearUnread;
+  const onNavigate = (path: string) => navigate(path.startsWith('/') ? path : `/${path}`);
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('all');
@@ -77,9 +78,11 @@ export default function Notifications({ onRead, onNavigate }: Props) {
 
   const markRead = async (id: string) => {
     await markNotificationRead(id);
-    setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    const stillUnread = notifs.filter(n => n.id !== id && !n.read).length;
-    if (stillUnread === 0) onRead();
+    setNotifs(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      if (updated.every(n => n.read)) onRead();
+      return updated;
+    });
   };
 
   const handleMarkAllRead = async () => {

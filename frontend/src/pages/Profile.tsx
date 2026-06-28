@@ -20,11 +20,10 @@ const C = {
 };
 
 const BADGE_META: Record<string, { emoji: string; label: string; desc: string; hint: string }> = {
-  speed_runner: { emoji: '⚡', label: 'Speed Runner',  desc: 'Submitted within 24h of a challenge going live', hint: 'Submit within 24h of a new challenge' },
-  streak_3:     { emoji: '🔥', label: '3-Week Streak', desc: 'Submitted every week for 3 consecutive weeks',  hint: 'Submit every week for 3 consecutive weeks' },
-  first_submit: { emoji: '🎯', label: 'First Submit',  desc: 'Completed your first challenge',                hint: 'Complete your first challenge' },
-  top_3:        { emoji: '🏆', label: 'Top 3',          desc: 'Ranked in the top 3 on the leaderboard',       hint: 'Reach top 3 on the leaderboard' },
-  centurion:    { emoji: '💯', label: 'Centurion',      desc: 'Earned 100+ points',                           hint: 'Earn 100 or more points' },
+  first_win:        { emoji: '🏅', label: 'First Win',        desc: 'Got your first submission approved',       hint: 'Get your first submission approved' },
+  five_wins:        { emoji: '⭐', label: 'High Achiever',    desc: 'Completed 5 challenges successfully',      hint: 'Get 5 submissions approved' },
+  ten_wins:         { emoji: '🏆', label: 'Expert',           desc: 'Completed 10 challenges successfully',     hint: 'Get 10 submissions approved' },
+  urgent_responder: { emoji: '⚡', label: 'Urgent Responder', desc: 'Completed an urgent priority challenge',   hint: 'Complete an urgent challenge' },
 };
 
 const ALL_BADGE_TYPES = Object.keys(BADGE_META);
@@ -101,14 +100,23 @@ const card: React.CSSProperties = {
 export default function Profile() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
-    getProfile().then(setData).finally(() => setLoading(false));
+    getProfile()
+      .then(setData)
+      .catch(() => setFetchError('Failed to load profile. Please refresh and try again.'))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
     <div style={{ textAlign: 'center', color: C.textMuted, padding: 60 }}>
       <div style={{ width: 36, height: 36, border: `3px solid #dae2fd`, borderTop: `3px solid ${C.primary}`, borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+    </div>
+  );
+  if (fetchError) return (
+    <div style={{ textAlign: 'center', padding: 60, color: C.textMuted }}>
+      <div style={{ fontSize: 15, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 12, padding: '14px 20px', display: 'inline-block' }}>{fetchError}</div>
     </div>
   );
   if (!data) return null;

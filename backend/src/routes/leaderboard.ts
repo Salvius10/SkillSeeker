@@ -58,7 +58,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         .eq('status', 'approved'),
     ]);
 
-    if (error) { res.status(500).json({ error: error.message }); return; }
+    if (error) { console.error('[leaderboard.GET]', error); res.status(500).json({ error: 'Could not load leaderboard' }); return; }
 
     const countMap = (approvedSubs ?? []).reduce((acc, s) => {
       acc[s.user_id] = (acc[s.user_id] ?? 0) + 1;
@@ -76,7 +76,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     res.json(ranked);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    console.error('[leaderboard.GET month]', err);
+    res.status(500).json({ error: 'Could not load leaderboard' });
   }
 });
 

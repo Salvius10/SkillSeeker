@@ -4,17 +4,18 @@ import { getChallenges, submitChallenge, getMyPicks, pickChallenge, unpickChalle
 import type { Challenge } from '../types';
 import SubmissionThread from '../components/SubmissionThread';
 import ChallengeModal from '../components/ChallengeModal';
+import { useAuth } from '../context/AuthContext';
 
 const C = {
   primary: '#1a00d9',
   orange: '#fe6e06',
-  bg: '#faf8ff',
+  bg: '#f5f6ff',
   surface: '#ffffff',
   surfaceLow: '#f2f3ff',
-  border: '#dae2fd',
-  text: '#131b2e',
-  textSec: '#454556',
-  textMuted: '#545567',
+  border: 'rgba(26,0,217,0.09)',
+  text: '#0e1523',
+  textSec: '#3d4460',
+  textMuted: '#8891a8',
   success: '#10b981',
   danger: '#d32f2f',
   coding: '#8b5cf6',
@@ -23,24 +24,24 @@ const C = {
   mono: "'JetBrains Mono', monospace",
 };
 
-const CARD_SHADOW = '0 4px 12px rgba(26,0,217,0.05)';
-const CARD_SHADOW_HOVER = '0 8px 24px rgba(26,0,217,0.10)';
+const CARD_SHADOW = '0 0 0 1px rgba(26,0,217,0.06), 0 2px 6px rgba(26,0,217,0.04), 0 8px 24px rgba(26,0,217,0.04)';
+const CARD_SHADOW_HOVER = '0 0 0 1px rgba(26,0,217,0.14), 0 4px 12px rgba(26,0,217,0.08), 0 20px 48px rgba(26,0,217,0.1)';
 
 function catConfig(cat: string): { color: string; bg: string; icon: React.ReactNode } {
   const c = cat.toLowerCase();
-  if (c.includes('cod') || c.includes('dev') || c.includes('eng')) return { color: C.coding, bg: 'rgba(139,92,246,0.10)', icon: <Code size={11} /> };
-  if (c.includes('res') || c.includes('ux') || c.includes('design')) return { color: C.research, bg: 'rgba(6,182,212,0.10)', icon: <FlaskConical size={11} /> };
-  return { color: C.primary, bg: 'rgba(26,0,217,0.08)', icon: <Sparkles size={11} /> };
+  if (c.includes('cod') || c.includes('dev') || c.includes('eng')) return { color: C.coding, bg: 'rgba(139,92,246,0.09)', icon: <Code size={10} /> };
+  if (c.includes('res') || c.includes('ux') || c.includes('design')) return { color: C.research, bg: 'rgba(6,182,212,0.09)', icon: <FlaskConical size={10} /> };
+  return { color: C.primary, bg: 'rgba(26,0,217,0.07)', icon: <Sparkles size={10} /> };
 }
 
 const STATUS_TAG: Record<string, { bg: string; fg: string; label: string }> = {
-  urgent:   { bg: '#fee7e0', fg: C.danger,   label: 'URGENT' },
-  open:     { bg: '#eaedff', fg: C.primary,  label: 'OPEN' },
-  pending:  { bg: '#fff3e8', fg: C.orange,   label: 'IN REVIEW' },
-  approved: { bg: 'rgba(16,185,129,0.12)', fg: C.success, label: 'APPROVED' },
-  rejected: { bg: '#fee7e0', fg: C.danger,   label: 'REVISION' },
-  closed:   { bg: C.surfaceLow, fg: '#767588', label: 'CLOSED' },
-  taken:    { bg: '#fff3e8', fg: C.orange,   label: 'TAKEN' },
+  urgent:   { bg: 'rgba(211,47,47,0.08)',  fg: C.danger,   label: 'URGENT' },
+  open:     { bg: 'rgba(26,0,217,0.07)',   fg: C.primary,  label: 'OPEN' },
+  pending:  { bg: 'rgba(254,110,6,0.09)',  fg: C.orange,   label: 'IN REVIEW' },
+  approved: { bg: 'rgba(16,185,129,0.09)', fg: C.success,  label: 'APPROVED' },
+  rejected: { bg: 'rgba(211,47,47,0.08)', fg: C.danger,   label: 'REVISION' },
+  closed:   { bg: 'rgba(100,100,120,0.07)', fg: '#767588', label: 'CLOSED' },
+  taken:    { bg: 'rgba(254,110,6,0.09)',  fg: C.orange,   label: 'TAKEN' },
 };
 
 function tagKey(c: Challenge, currentUserId: string) {
@@ -53,15 +54,11 @@ function tagKey(c: Challenge, currentUserId: string) {
   return 'closed';
 }
 
-interface Props {
-  filter: string;
-  setFilter: (f: string) => void;
-  minPoints: number;
-  setMinPoints: (n: number) => void;
-  currentUserId: string;
-}
-
-export default function Challenges({ filter, setFilter, minPoints, setMinPoints, currentUserId }: Props) {
+export default function Challenges() {
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? '';
+  const [filter, setFilter] = useState('all');
+  const [minPoints, setMinPoints] = useState(0);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [myPicks, setMyPicks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +87,6 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints,
 
   useEffect(() => { load(); }, [filter, minPoints]);
 
-  // Keep modal challenge in sync with latest data
   useEffect(() => {
     if (modalChallenge) {
       const updated = challenges.find(c => c.id === modalChallenge.id);
@@ -133,72 +129,112 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints,
     setThreadType(c.my_submission_type ?? 'text');
   };
 
-  const filterTabStyle = (active: boolean): React.CSSProperties => ({
+  const filterTabStyle = (active: boolean, accent?: string): React.CSSProperties => ({
     display: 'inline-flex', alignItems: 'center', gap: 5,
-    padding: '7px 14px', borderRadius: 24, fontSize: 13, fontWeight: 600, fontFamily: C.sans,
-    cursor: 'pointer', border: active ? 'none' : '1px solid #dae2fd',
-    background: active ? C.primary : C.surface, color: active ? '#fff' : C.textSec,
+    padding: '7px 15px', borderRadius: 20, fontSize: 12.5, fontFamily: C.sans,
+    cursor: 'pointer',
+    border: active ? 'none' : '1px solid rgba(26,0,217,0.1)',
+    background: active ? (accent ?? C.primary) : C.surface,
+    color: active ? '#fff' : C.textSec,
     transition: 'all 0.15s',
+    boxShadow: active ? `0 3px 12px ${accent ? 'rgba(254,110,6,0.35)' : 'rgba(26,0,217,0.28)'}` : '0 1px 3px rgba(26,0,217,0.04)',
+    letterSpacing: '-0.1px',
+    fontWeight: active ? 700 : 600,
   });
 
   return (
-    <div style={{ animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
+    <div style={{ animation: 'fadeIn 0.35s cubic-bezier(0.16,1,0.3,1)' }}>
 
       {/* Hero */}
       {counts.open > 0 && (
-        <div style={{ background: 'linear-gradient(135deg, #0f0099 0%, #1a00d9 60%, #2219f5 100%)', borderRadius: 16, padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 24px rgba(26,0,217,0.2)' }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 4, letterSpacing: '-0.3px' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #08006e 0%, #1200b0 30%, #1a00d9 65%, #2c1fff 100%)',
+          borderRadius: 18, padding: '22px 28px', marginBottom: 28,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          boxShadow: '0 8px 32px rgba(26,0,217,0.28), 0 1px 0 rgba(255,255,255,0.04) inset',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse 500px 300px at 20% 50%, rgba(255,255,255,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative' }}>
+            <div style={{ fontSize: 27, fontWeight: 900, color: '#fff', marginBottom: 5, letterSpacing: '-0.7px', lineHeight: 1.2 }}>
               {counts.open} open {counts.open === 1 ? 'opportunity' : 'opportunities'} available
             </div>
-            <div style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.72)' }}>Pick a challenge, submit your work, earn points</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.58)', fontWeight: 400 }}>Pick a challenge, submit your work, earn points</div>
           </div>
-          <div style={{ display: 'flex', gap: 16, flexShrink: 0 }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#fe6e06', fontFamily: C.mono }}>{counts.inProgress}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontFamily: C.mono }}>IN REVIEW</div>
-            </div>
-            <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.15)', alignSelf: 'center' }} />
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#a2a4ff', fontFamily: C.mono }}>{counts.urgent}</div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontFamily: C.mono }}>URGENT</div>
-            </div>
+          <div style={{ display: 'flex', gap: 28, flexShrink: 0, position: 'relative' }}>
+            {[
+              { val: counts.inProgress, label: 'IN REVIEW', color: '#fe6e06' },
+              { val: counts.urgent, label: 'URGENT', color: 'rgba(255,255,255,0.5)' },
+            ].map((s, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 36, fontWeight: 900, color: s.color, fontFamily: C.mono, letterSpacing: '-1.5px', lineHeight: 1 }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontFamily: C.mono, letterSpacing: '0.08em', marginTop: 4 }}>{s.label}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Search + points range */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      {/* Search + range */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <Search size={15} style={{ position: 'absolute', left: 14, color: C.textMuted, pointerEvents: 'none' }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search challenges…" style={{ width: '100%', height: 42, border: '1px solid #dae2fd', borderRadius: 10, padding: '0 14px 0 40px', fontSize: 14, fontFamily: C.sans, outline: 'none', background: C.surface, color: C.text }} />
+          <Search size={14} style={{ position: 'absolute', left: 14, color: C.textMuted, pointerEvents: 'none' }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search challenges…"
+            style={{
+              width: '100%', height: 42, border: '1px solid rgba(26,0,217,0.09)',
+              borderRadius: 11, padding: '0 14px 0 40px', fontSize: 13.5,
+              fontFamily: C.sans, outline: 'none', background: C.surface,
+              color: C.text, boxShadow: '0 1px 4px rgba(26,0,217,0.04)',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'rgba(26,0,217,0.3)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(26,0,217,0.07)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'rgba(26,0,217,0.09)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(26,0,217,0.04)'; }}
+          />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', background: C.surface, border: '1px solid #dae2fd', borderRadius: 10, minWidth: 180 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.05em' }}>MIN</span>
-          <input type="range" min={0} max={500} step={50} value={minPoints} onChange={e => setMinPoints(Number(e.target.value))} style={{ width: 100, accentColor: C.primary }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.orange, minWidth: 36, fontFamily: C.mono }}>{minPoints}</span>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px',
+          background: C.surface, border: '1px solid rgba(26,0,217,0.09)', borderRadius: 11,
+          minWidth: 190, boxShadow: '0 1px 4px rgba(26,0,217,0.04)',
+        }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.06em' }}>MIN PTS</span>
+          <input type="range" min={0} max={500} step={50} value={minPoints} onChange={e => setMinPoints(Number(e.target.value))} style={{ width: 90, accentColor: C.primary }} />
+          <span style={{ fontSize: 12, fontWeight: 800, color: C.orange, minWidth: 32, fontFamily: C.mono }}>{minPoints}</span>
         </div>
       </div>
 
       {/* Filter pills */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
-        <button onClick={() => setFilter('all')} style={filterTabStyle(filter === 'all')}>All <span style={{ fontFamily: C.mono, fontSize: 11 }}>{counts.all}</span></button>
-        <button onClick={() => setFilter('open')} style={filterTabStyle(filter === 'open')}>Open <span style={{ fontFamily: C.mono, fontSize: 11 }}>{counts.open}</span></button>
-        <button onClick={() => setFilter('inProgress')} style={filterTabStyle(filter === 'inProgress')}>In Progress <span style={{ fontFamily: C.mono, fontSize: 11 }}>{counts.inProgress}</span></button>
-        <button onClick={() => setFilter('urgent')} style={{ ...filterTabStyle(filter === 'urgent'), background: filter === 'urgent' ? '#fe6e06' : C.surface, border: filter === 'urgent' ? 'none' : '1px solid rgba(254,110,6,0.3)', color: filter === 'urgent' ? '#fff' : '#fe6e06' }}>
-          <Flame size={12} /> Urgent <span style={{ fontFamily: C.mono, fontSize: 11 }}>{counts.urgent}</span>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 22, flexWrap: 'wrap' }}>
+        <button onClick={() => setFilter('all')} style={filterTabStyle(filter === 'all')}>
+          All <span style={{ fontFamily: C.mono, fontSize: 10.5, opacity: 0.75 }}>{counts.all}</span>
+        </button>
+        <button onClick={() => setFilter('open')} style={filterTabStyle(filter === 'open')}>
+          Open <span style={{ fontFamily: C.mono, fontSize: 10.5, opacity: 0.75 }}>{counts.open}</span>
+        </button>
+        <button onClick={() => setFilter('inProgress')} style={filterTabStyle(filter === 'inProgress')}>
+          In Progress <span style={{ fontFamily: C.mono, fontSize: 10.5, opacity: 0.75 }}>{counts.inProgress}</span>
+        </button>
+        <button onClick={() => setFilter('urgent')} style={filterTabStyle(filter === 'urgent', '#fe6e06')}>
+          <Flame size={11} /> Urgent <span style={{ fontFamily: C.mono, fontSize: 10.5, opacity: 0.75 }}>{counts.urgent}</span>
         </button>
       </div>
 
       {/* Urgent banner */}
       {urgentChallenges.length > 0 && (
-        <div style={{ background: 'linear-gradient(90deg, #fe6e06 0%, #ff8c38 100%)', borderRadius: 12, padding: '14px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, color: '#fff', boxShadow: '0 4px 16px rgba(254,110,6,0.25)' }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', animation: 'pulse-dot 1.5s ease-in-out infinite', boxShadow: '0 0 0 3px rgba(255,255,255,0.3)' }} />
+        <div style={{
+          background: 'linear-gradient(90deg, #e85c00 0%, #fe6e06 50%, #ff8838 100%)',
+          borderRadius: 13, padding: '14px 20px', marginBottom: 22,
+          display: 'flex', alignItems: 'center', gap: 12, color: '#fff',
+          boxShadow: '0 6px 20px rgba(254,110,6,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', animation: 'pulse-dot 1.5s ease-in-out infinite', boxShadow: '0 0 0 4px rgba(255,255,255,0.25)', flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '-0.2px' }}>LIVE — Urgent challenge open</div>
-            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 1 }}>Submit before the deadline to maximize your points!</div>
+            <div style={{ fontWeight: 900, fontSize: 14.5, letterSpacing: '-0.3px' }}>LIVE — Urgent challenge open</div>
+            <div style={{ fontSize: 12, opacity: 0.8, marginTop: 1 }}>Submit before the deadline to maximize your points!</div>
           </div>
-          <span style={{ background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', padding: '4px 12px', borderRadius: 20, fontFamily: C.mono }}>
+          <span style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.28)', color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', padding: '5px 13px', borderRadius: 20, fontFamily: C.mono, flexShrink: 0 }}>
             UP TO {maxUrgentPts} PTS
           </span>
         </div>
@@ -206,12 +242,12 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints,
 
       {/* Cards */}
       {loading ? (
-        <div style={{ textAlign: 'center', color: C.textMuted, padding: 60 }}>
-          <div style={{ width: 36, height: 36, border: `3px solid #dae2fd`, borderTop: `3px solid ${C.primary}`, borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ fontSize: 13 }}>Loading challenges…</div>
+        <div style={{ textAlign: 'center', color: C.textMuted, padding: 80 }}>
+          <div style={{ width: 32, height: 32, border: `2.5px solid rgba(26,0,217,0.1)`, borderTop: `2.5px solid ${C.primary}`, borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 14px' }} />
+          <div style={{ fontSize: 13, color: C.textMuted }}>Loading challenges…</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {visible.map((c, index) => {
             const tk = tagKey(c, currentUserId);
             const tag = STATUS_TAG[tk] ?? STATUS_TAG.closed;
@@ -224,78 +260,96 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints,
             return (
               <div
                 key={c.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`${c.title} — ${c.points} points`}
                 onMouseEnter={() => setHoveredId(c.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 onClick={() => setModalChallenge(c)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setModalChallenge(c); } }}
                 style={{
                   background: C.surface,
-                  border: `1px solid ${isHovered ? C.primary : '#dae2fd'}`,
-                  borderRadius: 14,
-                  padding: '18px 20px',
+                  border: `1px solid ${isHovered ? 'rgba(26,0,217,0.18)' : 'rgba(26,0,217,0.07)'}`,
+                  borderRadius: 15,
+                  padding: '18px 22px',
                   boxShadow: isHovered ? CARD_SHADOW_HOVER : CARD_SHADOW,
-                  display: 'flex',
-                  gap: 16,
-                  transition: 'border-color 0.15s, box-shadow 0.15s',
-                  animation: 'slideUp 0.4s cubic-bezier(0.16,1,0.3,1)',
-                  animationDelay: `${Math.min(index, 5) * 50}ms`,
+                  display: 'flex', gap: 18,
+                  transition: 'border-color 0.18s, box-shadow 0.22s, transform 0.18s',
+                  animation: 'slideUp 0.35s cubic-bezier(0.16,1,0.3,1)',
+                  animationDelay: `${Math.min(index, 5) * 45}ms`,
                   animationFillMode: 'both',
                   cursor: 'pointer',
-                  opacity: isPickedByOther ? 0.85 : 1,
+                  opacity: isPickedByOther ? 0.82 : 1,
+                  transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {/* Tags */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10, flexWrap: 'wrap' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: cat.bg, color: cat.color, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', padding: '3px 9px 3px 7px', borderRadius: 20, fontFamily: C.mono }}>
-                      {cat.icon}{c.category}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9, flexWrap: 'wrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: cat.bg, color: cat.color, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', padding: '3px 9px 3px 7px', borderRadius: 20, fontFamily: C.mono }}>
+                      {cat.icon} {c.category}
                     </span>
-                    <span style={{ display: 'inline-block', background: tag.bg, color: tag.fg, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.04em', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
+                    <span style={{ display: 'inline-block', background: tag.bg, color: tag.fg, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
                       {tag.label}
                     </span>
                     {isPickedByOther && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: C.orange, background: 'rgba(254,110,6,0.08)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono, fontWeight: 700 }}>
-                        <Lock size={9} /> {c.picked_by!.name}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, color: C.orange, background: 'rgba(254,110,6,0.07)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono, fontWeight: 700 }}>
+                        <Lock size={8} /> {c.picked_by!.name}
                       </span>
                     )}
                     {isPicked && !hasSub && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 700, color: C.success, background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
-                        ✓ You picked this
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: C.success, background: 'rgba(16,185,129,0.08)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
+                        ✓ Picked
                       </span>
                     )}
                   </div>
 
-                  <h3 style={{ margin: '0 0 5px', fontSize: 15.5, fontWeight: 700, letterSpacing: '-0.2px', color: C.text, lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{c.title}</h3>
-                  <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.55, color: C.textSec, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.description}</p>
+                  <h3 style={{ margin: '0 0 5px', fontSize: 17, fontWeight: 800, letterSpacing: '-0.45px', color: C.text, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{c.title}</h3>
+                  <p style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.55, color: C.textSec, fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{c.description}</p>
 
-                  <div style={{ display: 'flex', gap: 14, fontSize: 12, color: C.textMuted }}>
+                  <div style={{ display: 'flex', gap: 14, fontSize: 11.5, color: C.textMuted }}>
                     {c.due_date && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Clock size={11} />Due {new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <Clock size={10} /> Due {new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
                     )}
                     <span style={{ fontFamily: C.mono }}>{c.entry_count ?? 0} entries</span>
-                    {isPickedByOther && <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: C.orange }}><AlertTriangle size={10} />Taken</span>}
+                    {isPickedByOther && <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: C.orange }}><AlertTriangle size={9} />Taken</span>}
                   </div>
                 </div>
 
                 {/* Right column */}
-                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, minWidth: 90 }}>
+                <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, minWidth: 88 }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: C.orange, fontFamily: C.mono, letterSpacing: '-0.5px' }}>{c.points}</div>
-                    <div style={{ fontSize: 10.5, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.04em' }}>POINTS</div>
+                    <div style={{ fontSize: 32, fontWeight: 900, color: C.orange, fontFamily: C.mono, letterSpacing: '-1px', lineHeight: 1 }}>{c.points}</div>
+                    <div style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.08em', marginTop: 3 }}>PTS</div>
                   </div>
-                  <span style={{ fontSize: 12, color: C.primary, fontWeight: 600, fontFamily: C.sans }}>View details →</span>
+                  <span style={{
+                    fontSize: 12, fontWeight: 700, fontFamily: C.sans, transition: 'all 0.15s',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: isHovered ? '5px 12px' : '5px 0',
+                    background: isHovered ? C.primary : 'transparent',
+                    color: isHovered ? '#fff' : C.textMuted,
+                    borderRadius: 20,
+                    boxShadow: isHovered ? '0 2px 10px rgba(26,0,217,0.25)' : 'none',
+                  }}>
+                    {isHovered ? 'Open' : '···'}
+                  </span>
                 </div>
               </div>
             );
           })}
+
           {visible.length === 0 && (
-            <div style={{ textAlign: 'center', color: C.textMuted, padding: 60, background: C.surface, border: '1px solid #dae2fd', borderRadius: 14 }}>
-              <SearchX size={36} style={{ color: '#dae2fd', marginBottom: 12 }} />
-              <div style={{ fontWeight: 700, color: C.textSec }}>No challenges match your filters</div>
-              <div style={{ fontSize: 13, marginTop: 4 }}>Try a different filter or search term</div>
+            <div style={{ textAlign: 'center', color: C.textMuted, padding: 72, background: C.surface, border: '1px solid rgba(26,0,217,0.07)', borderRadius: 16, boxShadow: CARD_SHADOW }}>
+              <SearchX size={32} style={{ color: 'rgba(26,0,217,0.15)', marginBottom: 14 }} />
+              <div style={{ fontWeight: 700, color: C.textSec, marginBottom: 4 }}>No challenges match your filters</div>
+              <div style={{ fontSize: 13, marginBottom: 18 }}>Try a different filter or search term</div>
               {(search || filter !== 'all' || minPoints > 0) && (
-                <button onClick={() => { setSearch(''); setFilter('all'); setMinPoints(0); }} style={{ marginTop: 14, background: C.primary, color: '#fff', border: 'none', borderRadius: 20, padding: '7px 18px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                <button
+                  onClick={() => { setSearch(''); setFilter('all'); setMinPoints(0); }}
+                  style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 20, padding: '8px 20px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 10px rgba(26,0,217,0.25)' }}
+                >
                   Clear filters
                 </button>
               )}
@@ -304,7 +358,6 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints,
         </div>
       )}
 
-      {/* Challenge detail modal */}
       {modalChallenge && (
         <ChallengeModal
           challenge={modalChallenge}
@@ -317,16 +370,12 @@ export default function Challenges({ filter, setFilter, minPoints, setMinPoints,
           onPick={() => handlePick(modalChallenge.id)}
           onUnpick={() => handleUnpick(modalChallenge.id)}
           onSubmitSuccess={() => { setModalChallenge(null); load(); }}
-          onViewSubmissionThread={() => {
-            openThread(modalChallenge);
-            setModalChallenge(null);
-          }}
+          onViewSubmissionThread={() => { openThread(modalChallenge); setModalChallenge(null); }}
           onClose={() => setModalChallenge(null)}
           submitChallengeFn={(id, content, type) => submitChallenge(id, content, type)}
         />
       )}
 
-      {/* Submission review thread */}
       {threadId && (
         <SubmissionThread
           submissionId={threadId}

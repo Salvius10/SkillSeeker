@@ -43,7 +43,7 @@ const card: React.CSSProperties = {
   background: C.surface,
   border: '1px solid #dae2fd',
   borderRadius: 14,
-  boxShadow: '0 4px 12px rgba(26,0,217,0.04)',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.06), 0 8px 24px rgba(26,0,217,0.07)',
 };
 
 export default function AllChallenges() {
@@ -52,11 +52,16 @@ export default function AllChallenges() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ title: '', status: 'open', priority: 'normal', due_date: '' });
   const [editError, setEditError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = () => {
     setLoading(true);
-    getChallenges().then(setChallenges).finally(() => setLoading(false));
+    setLoadError('');
+    getChallenges()
+      .then(setChallenges)
+      .catch(() => setLoadError('Failed to load challenges. Please refresh.'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -83,7 +88,12 @@ export default function AllChallenges() {
   };
 
   const quickClose = async (id: string) => {
-    try { await updateChallenge(id, { status: 'closed' }); load(); } catch {}
+    try {
+      await updateChallenge(id, { status: 'closed' });
+      load();
+    } catch (e: unknown) {
+      setEditError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to close challenge. Try again.');
+    }
   };
 
   const totalPts = challenges.reduce((s, c) => s + c.points, 0);
@@ -99,21 +109,31 @@ export default function AllChallenges() {
   return (
     <div style={{ maxWidth: 1060, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeIn 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
 
-      {/* Stat tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      {/* Stat tiles — hero + supporting */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 14 }}>
+        {/* Hero tile */}
+        <div style={{ ...card, padding: '22px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 116 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: `${C.primary}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <LayoutGrid size={20} color={C.primary} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: C.mono }}>Total Challenges</span>
+          </div>
+          <div style={{ fontSize: 52, fontWeight: 900, color: C.primary, fontFamily: C.mono, lineHeight: 1, letterSpacing: '-2px', marginTop: 8 }}>{challenges.length}</div>
+        </div>
+        {/* Supporting tiles */}
         {[
-          { label: 'Total Challenges', val: challenges.length, color: C.primary, icon: <LayoutGrid size={18} color={C.primary} /> },
-          { label: 'Open', val: open, color: C.success, icon: <Check size={18} color={C.success} /> },
-          { label: 'Urgent', val: urgent, color: C.orange, icon: <AlertTriangle size={18} color={C.orange} /> },
-          { label: 'Points Pool', val: totalPts.toLocaleString(), color: '#413ff4', icon: <Coins size={18} color='#413ff4' /> },
+          { label: 'Open', val: open, color: C.success, icon: <Check size={17} color={C.success} /> },
+          { label: 'Urgent', val: urgent, color: C.orange, icon: <AlertTriangle size={17} color={C.orange} /> },
+          { label: 'Points Pool', val: totalPts.toLocaleString(), color: '#413ff4', icon: <Coins size={17} color='#413ff4' /> },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: '18px 20px', display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: `${s.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div key={s.label} style={{ ...card, padding: '20px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 116 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {s.icon}
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.05em', fontFamily: C.mono }}>{s.label.toUpperCase()}</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color, fontFamily: C.mono, lineHeight: 1.1 }}>{s.val}</div>
+              <div style={{ fontSize: 30, fontWeight: 900, color: s.color, fontFamily: C.mono, lineHeight: 1, letterSpacing: '-1px' }}>{s.val}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: C.mono, marginTop: 5 }}>{s.label}</div>
             </div>
           </div>
         ))}
@@ -147,8 +167,8 @@ export default function AllChallenges() {
                 transition: 'background 0.15s',
               }}>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: C.text }}>{c.title}</div>
-                  <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 2, fontFamily: C.mono }}>{c.category.toUpperCase()}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: C.text, letterSpacing: '-0.2px' }}>{c.title}</div>
+                  <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 3, fontFamily: C.mono }}>{c.category.toUpperCase()}</div>
                 </div>
                 <span style={{ textAlign: 'center' }}>
                   <span style={{ background: bg, color: fg, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, fontFamily: C.mono, letterSpacing: '0.03em', display: 'inline-block' }}>
@@ -199,7 +219,8 @@ export default function AllChallenges() {
             </div>
           );
         })}
-        {challenges.length === 0 && <div style={{ textAlign: 'center', color: C.textMuted, padding: 40, fontSize: 14 }}>No challenges yet.</div>}
+        {loadError && <div style={{ textAlign: 'center', color: '#d32f2f', background: '#fee7e0', borderRadius: 8, padding: '12px 20px', margin: '12px 20px', fontSize: 13.5 }}>{loadError}</div>}
+        {!loadError && challenges.length === 0 && <div style={{ textAlign: 'center', color: C.textMuted, padding: 40, fontSize: 14 }}>No challenges yet.</div>}
       </div>
     </div>
   );

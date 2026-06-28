@@ -12,8 +12,11 @@ export const sseManager = {
   },
   emit(userId: string, data: object) {
     const payload = `data: ${JSON.stringify(data)}\n\n`;
-    map.get(userId)?.forEach(res => {
-      try { res.write(payload); } catch {}
-    });
+    const conns = map.get(userId);
+    if (!conns) return;
+    for (const res of conns) {
+      try { res.write(payload); }
+      catch { conns.delete(res); } // stale connection — remove it
+    }
   },
 };

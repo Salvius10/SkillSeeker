@@ -2,41 +2,48 @@ import { Router, Request, Response } from 'express';
 import { supabase } from '../db';
 import { requireAuth, requireAdmin } from '../middleware/auth';
 import { sseManager } from '../lib/sseManager';
+import { notifyAllEmployees } from '../lib/notify';
 
 const router = Router();
+
+const MIN_POINTS = 1;
+const MAX_POINTS = 10000;
+const MAX_TITLE = 200;
+const MAX_DESCRIPTION = 5000;
+const MAX_CATEGORY = 80;
+
+function validatePoints(points: unknown): { ok: true; value: number } | { ok: false; error: string } {
+  const n = Number(points);
+  if (!Number.isInteger(n)) return { ok: false, error: 'points must be an integer' };
+  if (n < MIN_POINTS) return { ok: false, error: `points must be at least ${MIN_POINTS}` };
+  if (n > MAX_POINTS) return { ok: false, error: `points cannot exceed ${MAX_POINTS}` };
+  return { ok: true, value: n };
+}
 
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   const { filter, minPoints, category } = req.query;
 
   let query = supabase
     .from('challenges')
-    .select(`
-      *,
-      entry_count:submissions!challenge_id(count),
-      creator:users!created_by(name)
-    `)
+    .select(`*, entry_count:submissions!challenge_id(count), creator:users!created_by(name)`)
     .order('created_at', { ascending: false });
 
-  if (minPoints) query = query.gte('points', Number(minPoints));
-  if (category) query = query.eq('category', category);
+  const minPtsNum = Number(minPoints);
+  if (minPoints && Number.isFinite(minPtsNum)) query = query.gte('points', minPtsNum);
+  if (category) query = query.eq('category', String(category).slice(0, MAX_CATEGORY));
   if (filter === 'urgent') query = query.eq('priority', 'urgent');
   else if (filter === 'open') query = query.eq('status', 'open');
   else if (filter === 'closed') query = query.eq('status', 'closed');
 
   const { data, error } = await query;
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
+  if (error) { console.error('[challenges.GET]', error); res.status(500).json({ error: 'Could not load challenges' }); return; }
 
-  // Flatten Supabase aggregate: entry_count comes back as [{ count: n }]
   const flatten = (rows: typeof data) =>
     (rows || []).map(c => ({
       ...c,
       entry_count: Array.isArray(c.entry_count) ? (c.entry_count[0]?.count ?? 0) : (c.entry_count ?? 0),
     }));
 
-  // Fetch all picks to enrich challenges with picker info
   const { data: pickRows } = await supabase
     .from('picks')
     .select('challenge_id, picker:users!user_id(id, name)');
@@ -51,7 +58,6 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   const withPicks = (rows: ReturnType<typeof flatten>) =>
     rows.map(c => ({ ...c, picked_by: pickMap[c.id] || null }));
 
-  // If employee, attach their own submission status, id, and type
   if (req.user!.role === 'employee') {
     const { data: subs } = await supabase
       .from('submissions')
@@ -78,16 +84,23 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
     res.status(400).json({ error: 'title, description and points are required' });
     return;
   }
+  if (typeof title === 'string' && title.trim().length > MAX_TITLE) {
+    res.status(400).json({ error: `Title must be ${MAX_TITLE} characters or fewer` }); return;
+  }
+  if (typeof description === 'string' && description.trim().length > MAX_DESCRIPTION) {
+    res.status(400).json({ error: `Description must be ${MAX_DESCRIPTION} characters or fewer` }); return;
+  }
+
+  const ptsResult = validatePoints(points);
+  if (!ptsResult.ok) { res.status(400).json({ error: ptsResult.error }); return; }
+
   const { data, error } = await supabase
     .from('challenges')
-    .insert({ title, description, category, points: Number(points), due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id })
+    .insert({ title, description, category, points: ptsResult.value, due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id })
     .select()
     .single();
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-  // Auto-create a news post so the feed shows new challenges
+  if (error) { console.error('[challenges.POST]', error); res.status(500).json({ error: 'Could not create challenge' }); return; }
+
   await supabase.from('news_posts').insert({
     title: `New Challenge: ${data.title}`,
     content: data.description,
@@ -96,20 +109,10 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
     challenge_id: data.id,
   });
 
-  // Notify all employees of the new challenge
-  const { data: employees } = await supabase.from('users').select('id').eq('role', 'employee');
-  if (employees?.length) {
-    const msg = `New challenge available: ${data.title} · ${data.points} pts`;
-    const { data: notifs } = await supabase.from('notifications')
-      .insert(employees.map(e => ({ user_id: e.id, type: 'new_challenge', message: msg })))
-      .select();
-    for (const n of notifs ?? []) sseManager.emit(n.user_id, n);
-  }
+  await notifyAllEmployees('new_challenge', `New challenge available: ${data.title} · ${data.points} pts`);
 
   res.status(201).json(data);
 });
-
-// ── Social thread (challenge comments, visible to all) ────────────
 
 router.get('/:id/comments', requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id;
@@ -118,9 +121,7 @@ router.get('/:id/comments', requireAuth, async (req: Request, res: Response) => 
     .select(`*, author:users!user_id(id, name, team, role), likes:challenge_comment_likes(user_id)`)
     .eq('challenge_id', req.params.id)
     .order('created_at', { ascending: true });
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
-
+  if (error) { console.error('[challenges.GET comments]', error); res.status(500).json({ error: 'Could not load comments' }); return; }
   res.json((data || []).map(c => ({
     ...c,
     like_count: Array.isArray(c.likes) ? c.likes.length : 0,
@@ -132,14 +133,14 @@ router.get('/:id/comments', requireAuth, async (req: Request, res: Response) => 
 router.post('/:id/comments', requireAuth, async (req: Request, res: Response) => {
   const { message } = req.body;
   if (!message?.trim()) { res.status(400).json({ error: 'message is required' }); return; }
+  if (message.trim().length > 2000) { res.status(400).json({ error: 'Message must be 2000 characters or fewer' }); return; }
 
   const { data, error } = await supabase
     .from('challenge_comments')
     .insert({ challenge_id: req.params.id, user_id: req.user!.id, message: message.trim() })
     .select(`*, author:users!user_id(id, name, team, role)`)
     .single();
-
-  if (error) { res.status(500).json({ error: error.message }); return; }
+  if (error) { console.error('[challenges.POST comment]', error); res.status(500).json({ error: 'Could not post comment' }); return; }
   res.status(201).json({ ...data, like_count: 0, my_like: false });
 });
 
@@ -165,16 +166,57 @@ router.post('/:id/comments/:commentId/like', requireAuth, async (req: Request, r
 
 router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const { title, description, category, points, due_date, priority, status } = req.body;
+
+  if (title !== undefined && typeof title === 'string' && title.trim().length > MAX_TITLE) {
+    res.status(400).json({ error: `Title must be ${MAX_TITLE} characters or fewer` }); return;
+  }
+  if (description !== undefined && typeof description === 'string' && description.trim().length > MAX_DESCRIPTION) {
+    res.status(400).json({ error: `Description must be ${MAX_DESCRIPTION} characters or fewer` }); return;
+  }
+
+  let validatedPoints: number | undefined;
+  if (points !== undefined && points !== null && points !== '') {
+    const ptsResult = validatePoints(points);
+    if (!ptsResult.ok) { res.status(400).json({ error: ptsResult.error }); return; }
+    validatedPoints = ptsResult.value;
+  }
+
   const { data, error } = await supabase
     .from('challenges')
-    .update({ title, description, category, points: points ? Number(points) : undefined, due_date, priority, status })
+    .update({ title, description, category, points: validatedPoints, due_date, priority, status })
     .eq('id', req.params.id)
     .select()
     .single();
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
+  if (error) { console.error('[challenges.PUT]', error); res.status(500).json({ error: 'Could not update challenge' }); return; }
+
+  const { data: pick } = await supabase
+    .from('picks')
+    .select('user_id')
+    .eq('challenge_id', req.params.id)
+    .maybeSingle();
+
+  if (pick) {
+    let notifMsg: string;
+    let notifType: string;
+    if (status === 'closed') {
+      notifMsg = `⚠️ Challenge closed: "${data.title}" — it is no longer accepting submissions`;
+      notifType = 'challenge_closed';
+    } else {
+      const changes: string[] = [];
+      if (points !== undefined) changes.push(`points changed to ${validatedPoints}`);
+      if (due_date !== undefined) changes.push('due date updated');
+      if (priority !== undefined) changes.push(`priority set to ${priority}`);
+      if (title !== undefined) changes.push('title updated');
+      notifMsg = `Challenge updated: "${data.title}"${changes.length ? ' · ' + changes.join(', ') : ''}`;
+      notifType = 'challenge_updated';
+    }
+
+    const { data: notif } = await supabase.from('notifications').insert({
+      user_id: pick.user_id, type: notifType, message: notifMsg,
+    }).select().single();
+    if (notif) sseManager.emit(pick.user_id, notif);
   }
+
   res.json(data);
 });
 

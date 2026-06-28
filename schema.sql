@@ -140,3 +140,13 @@ create table if not exists challenge_comment_likes (
   created_at timestamptz not null default now(),
   unique(comment_id, user_id)
 );
+
+-- Text comments on news posts (LinkedIn-style)
+create table if not exists news_post_comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references news_posts(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_news_post_comments_post on news_post_comments(post_id);

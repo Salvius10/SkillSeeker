@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import {
-  X, Clock, Flame, Code, FlaskConical, Sparkles, Heart, Send,
+  X, Clock, Flame, Code, FlaskConical, Sparkles,
   CheckCircle2, XCircle, MessageCircle, Target, AlertTriangle,
 } from 'lucide-react';
-import { getChallengeComments, postChallengeComment, toggleCommentLike } from '../api/client';
-import type { Challenge, ChallengeComment } from '../types';
+import type { Challenge } from '../types';
 
 const C = {
   primary: '#1a00d9',
@@ -54,41 +53,12 @@ interface Props {
   submitChallengeFn: (id: string, content: string, type: string) => Promise<void>;
 }
 
-function timeAgo(ts: string) {
-  const diff = Date.now() - new Date(ts).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-function Initials({ name }: { name: string }) {
-  const ini = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  return (
-    <div style={{
-      width: 32, height: 32, borderRadius: '50%',
-      background: 'linear-gradient(135deg, #1a00d9, #413ff4)',
-      color: '#fff', fontWeight: 800, fontSize: 11,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      flexShrink: 0,
-    }}>
-      {ini}
-    </div>
-  );
-}
-
 export default function ChallengeModal({
   challenge, currentUserId, isPicked, hasSubmission,
   submissionStatus, submissionId, submissionType,
   onPick, onUnpick, onSubmitSuccess, onViewSubmissionThread, onClose,
   submitChallengeFn,
 }: Props) {
-  const [comments, setComments] = useState<ChallengeComment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [newMsg, setNewMsg] = useState('');
-  const [sending, setSending] = useState(false);
   const [picking, setPicking] = useState(false);
   const [pickError, setPickError] = useState('');
   const [showSubmit, setShowSubmit] = useState(false);
@@ -96,24 +66,8 @@ export default function ChallengeModal({
   const [submitType, setSubmitType] = useState<'text' | 'github_url' | 'presentation_url' | 'folder_url'>('text');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const threadRef = useRef<HTMLDivElement>(null);
-
   const isPickedByOther = !!(challenge.picked_by && challenge.picked_by.id !== currentUserId);
   const isPickedByAnyone = !!challenge.picked_by;
-
-  useEffect(() => {
-    if (!isPickedByAnyone) return;
-    setCommentsLoading(true);
-    getChallengeComments(challenge.id)
-      .then(setComments)
-      .finally(() => setCommentsLoading(false));
-  }, [challenge.id, isPickedByAnyone]);
-
-  useEffect(() => {
-    if (threadRef.current) {
-      threadRef.current.scrollTop = threadRef.current.scrollHeight;
-    }
-  }, [comments]);
 
   const handlePick = async () => {
     setPickError('');
@@ -124,27 +78,11 @@ export default function ChallengeModal({
   };
 
   const handleUnpick = async () => {
+    setPickError('');
     setPicking(true);
-    try { await onUnpick(); } catch {}
-    finally { setPicking(false); }
-  };
-
-  const handleSendComment = async () => {
-    if (!newMsg.trim() || sending) return;
-    setSending(true);
-    try {
-      const c = await postChallengeComment(challenge.id, newMsg.trim());
-      setComments(prev => [...prev, c]);
-      setNewMsg('');
-    } finally { setSending(false); }
-  };
-
-  const handleLike = async (comment: ChallengeComment) => {
-    const result = await toggleCommentLike(challenge.id, comment.id);
-    setComments(prev => prev.map(c => c.id === comment.id
-      ? { ...c, my_like: result.liked, like_count: result.liked ? c.like_count + 1 : c.like_count - 1 }
-      : c
-    ));
+    try { await onUnpick(); } catch (e: unknown) {
+      setPickError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not unpick. Try again.');
+    } finally { setPicking(false); }
   };
 
   const handleSubmit = async () => {
@@ -309,86 +247,6 @@ export default function ChallengeModal({
           {pickError && <span style={{ fontSize: 12.5, color: C.danger }}>{pickError}</span>}
         </div>
 
-        {/* Social thread */}
-        {isPickedByAnyone && (
-          <div style={{ padding: '0 0 0' }}>
-            <div style={{ padding: '14px 24px 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
-              <MessageCircle size={16} color={C.primary} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Discussion</span>
-              <span style={{ fontSize: 12, color: C.textMuted, fontFamily: C.mono }}>{comments.length} comments</span>
-            </div>
-
-            {/* Comments list */}
-            <div
-              ref={threadRef}
-              style={{ maxHeight: 320, overflowY: 'auto', padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 12 }}
-            >
-              {commentsLoading ? (
-                <div style={{ textAlign: 'center', color: C.textMuted, padding: '20px 0', fontSize: 13 }}>Loading…</div>
-              ) : comments.length === 0 ? (
-                <div style={{ textAlign: 'center', color: C.textMuted, padding: '20px 0', fontSize: 13 }}>
-                  No comments yet — be the first to share thoughts!
-                </div>
-              ) : (
-                comments.map(comment => (
-                  <div key={comment.id} style={{ display: 'flex', gap: 10 }}>
-                    <Initials name={comment.author?.name ?? '?'} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap', marginBottom: 3 }}>
-                        <span style={{ fontWeight: 700, fontSize: 13, color: C.text }}>{comment.author?.name}</span>
-                        {comment.author?.team && (
-                          <span style={{ fontSize: 11, color: C.textMuted, background: C.surfaceLow, borderRadius: 20, padding: '1px 7px', fontFamily: C.mono }}>{comment.author.team}</span>
-                        )}
-                        <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 'auto' }}>{timeAgo(comment.created_at)}</span>
-                      </div>
-                      <p style={{ margin: '0 0 6px', fontSize: 13.5, lineHeight: 1.6, color: C.textSec, wordBreak: 'break-word' }}>{comment.message}</p>
-                      <button
-                        onClick={() => handleLike(comment)}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          background: comment.my_like ? 'rgba(254,110,6,0.1)' : 'transparent',
-                          border: comment.my_like ? '1px solid rgba(254,110,6,0.3)' : '1px solid #e7edf8',
-                          borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600,
-                          color: comment.my_like ? C.orange : C.textMuted,
-                          cursor: 'pointer', fontFamily: C.sans,
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <Heart size={12} fill={comment.my_like ? C.orange : 'none'} />
-                        {comment.like_count > 0 && comment.like_count}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Comment input */}
-            <div style={{ padding: '12px 24px 20px', borderTop: '1px solid #e7edf8', marginTop: 10, display: 'flex', gap: 10 }}>
-              <textarea
-                value={newMsg}
-                onChange={e => setNewMsg(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(); } }}
-                placeholder="Add a comment… (Enter to send)"
-                rows={2}
-                style={{ flex: 1, border: '1px solid #dae2fd', borderRadius: 10, padding: '9px 12px', fontSize: 13.5, fontFamily: C.sans, resize: 'none', outline: 'none', background: C.surfaceLow, lineHeight: 1.5 }}
-              />
-              <button
-                onClick={handleSendComment}
-                disabled={!newMsg.trim() || sending}
-                style={{
-                  background: newMsg.trim() ? C.primary : '#dae2fd',
-                  border: 'none', borderRadius: 10, padding: '0 16px',
-                  cursor: newMsg.trim() ? 'pointer' : 'default',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'background 0.15s', flexShrink: 0,
-                }}
-              >
-                <Send size={16} color="#fff" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

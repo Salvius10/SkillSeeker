@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
 import { login as apiLogin } from "@/api/client"
@@ -42,7 +41,7 @@ export function Component() {
   const [email, setEmail]       = useState("")
   const [password, setPassword] = useState("")
   const [name, setName]         = useState("")
-  const [remember, setRemember] = useState(false)
+  const [team, setTeam]         = useState("")
   const [error, setError]       = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [mounted, setMounted]   = useState(false)
@@ -58,7 +57,7 @@ export function Component() {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name, email, password, team }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? "Registration failed")
@@ -186,18 +185,31 @@ export function Component() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "register" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Full name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Your name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    required
-                    autoComplete="name"
-                  />
-                </div>
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name">Full name</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Your name"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      required
+                      autoComplete="name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="team">Team</Label>
+                    <Input
+                      id="team"
+                      type="text"
+                      placeholder="e.g. Platform, DevOps, Security"
+                      value={team}
+                      onChange={e => setTeam(e.target.value)}
+                      autoComplete="organization"
+                    />
+                  </div>
+                </>
               )}
 
               <div className="space-y-1.5">
@@ -226,20 +238,6 @@ export function Component() {
                 />
               </div>
 
-              {mode === "login" && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="remember"
-                      checked={remember}
-                      onCheckedChange={v => setRemember(v === true)}
-                    />
-                    <Label htmlFor="remember" className="font-normal text-gray-600 cursor-pointer">
-                      Remember me
-                    </Label>
-                  </div>
-                </div>
-              )}
 
               {error && (
                 <div className="fade-in rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">

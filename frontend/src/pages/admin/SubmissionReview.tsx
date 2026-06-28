@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Check, X, User, Calendar, CheckCircle2 } from 'lucide-react';
 import { getSubmissions, reviewSubmission } from '../../api/client';
 import type { Submission } from '../../types';
+import { useAppContext } from '../../context/AppContext';
 
 const C = {
   primary: '#1a00d9',
@@ -17,9 +18,8 @@ const C = {
   mono: "'JetBrains Mono', monospace",
 };
 
-interface Props { onReviewed: () => void; }
-
-export default function SubmissionReview({ onReviewed }: Props) {
+export default function SubmissionReview() {
+  const { decrementPending: onReviewed } = useAppContext();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -27,9 +27,12 @@ export default function SubmissionReview({ onReviewed }: Props) {
   const [reviewError, setReviewError] = useState<Record<string, string>>({});
 
   const load = async () => {
-    const data = await getSubmissions();
-    setSubmissions(data.filter((s: Submission) => s.status === 'pending'));
-    setLoading(false);
+    try {
+      const data = await getSubmissions();
+      setSubmissions(data.filter((s: Submission) => s.status === 'pending'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, []);

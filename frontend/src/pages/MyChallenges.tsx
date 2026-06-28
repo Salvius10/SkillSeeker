@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bookmark, Clock, Code, FlaskConical, Sparkles, MessageCircle, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { getChallenges, getMyPicks, submitChallenge, unpickChallenge } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import type { Challenge } from '../types';
 import SubmissionThread from '../components/SubmissionThread';
 import ChallengeModal from '../components/ChallengeModal';
@@ -35,14 +36,13 @@ const STATUS_META: Record<string, { bg: string; fg: string; label: string; icon:
   rejected: { bg: '#fee7e0', fg: C.danger,  label: 'Needs Revision',  icon: <XCircle size={13} /> },
 };
 
-interface Props {
-  currentUserId: string;
-}
-
-export default function MyChallenges({ currentUserId }: Props) {
+export default function MyChallenges() {
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? '';
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [myPicks, setMyPicks] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unpickError, setUnpickError] = useState('');
   const [modalChallenge, setModalChallenge] = useState<Challenge | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [threadTitle, setThreadTitle] = useState('');
@@ -78,8 +78,13 @@ export default function MyChallenges({ currentUserId }: Props) {
   };
 
   const handleUnpick = async (challengeId: string) => {
-    await unpickChallenge(challengeId);
-    load();
+    setUnpickError('');
+    try {
+      await unpickChallenge(challengeId);
+      load();
+    } catch (e: unknown) {
+      setUnpickError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not remove pick. Please try again.');
+    }
   };
 
   const approved = challenges.filter(c => c.my_submission_status === 'approved').length;
@@ -105,6 +110,10 @@ export default function MyChallenges({ currentUserId }: Props) {
         </div>
         <p style={{ margin: 0, fontSize: 14, color: C.textMuted }}>Challenges you've claimed — work on them, join the discussion, and submit your solution.</p>
       </div>
+
+      {unpickError && (
+        <div style={{ background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 10, padding: '10px 16px', fontSize: 13.5, color: '#d32f2f', marginBottom: 8 }}>{unpickError}</div>
+      )}
 
       {/* Stats row */}
       {challenges.length > 0 && (

@@ -14,17 +14,19 @@ function isoWeek(date: Date): string {
 }
 
 router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  try {
   const [
     { data: users },
     { data: challenges },
+    // FIX #11: Include reviewed_at for all submissions so we can compute turnaround for both approved and rejected
     { data: submissions },
     { data: approvedSubs },
   ] = await Promise.all([
     supabase.from('users').select('id, name, team, points').eq('role', 'employee'),
     supabase.from('challenges').select('id, title, category, points, status'),
-    supabase.from('submissions').select('user_id, challenge_id, created_at, status'),
+    supabase.from('submissions').select('user_id, challenge_id, created_at, reviewed_at, status'),
     supabase.from('submissions')
-      .select('user_id, created_at, reviewed_at, challenge:challenges(points, category)')
+      .select('user_id, challenge_id, created_at, reviewed_at, challenge:challenges(points, category)')
       .eq('status', 'approved'),
   ]);
 
@@ -43,9 +45,9 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
   const decided = approvedCount + rejectedCount;
   const approvalRate = decided > 0 ? Math.round((approvedCount / decided) * 100) : 0;
 
-  // ── Review turnaround (approved subs only) ────────────────────────
-  const reviewDiffs = (approvedSubs ?? [])
-    .filter(s => s.created_at && s.reviewed_at)
+  // ── FIX #11: Review turnaround includes both approved AND rejected decisions ──
+  const reviewDiffs = (submissions ?? [])
+    .filter(s => s.reviewed_at && (s.status === 'approved' || s.status === 'rejected'))
     .map(s => (new Date(s.reviewed_at!).getTime() - new Date(s.created_at).getTime()) / 86400000);
   const avgReviewDays = reviewDiffs.length
     ? +(reviewDiffs.reduce((a, b) => a + b, 0) / reviewDiffs.length).toFixed(1)
@@ -111,15 +113,17 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
     .map(([team, d]) => ({ team, total_points: d.points, member_count: d.members.size, completion_count: d.completions }))
     .sort((a, b) => b.total_points - a.total_points);
 
-  // ── Top challenges by submission count ────────────────────────────
-  const challengeSubCount: Record<string, number> = {};
-  for (const s of submissions ?? []) {
+  // ── FIX #12: Top challenges ranked by APPROVED submissions only ───
+  // Previously counted all submissions (including rejected), making high-rejection
+  // challenges look falsely popular. Now only approved completions count.
+  const challengeApprovedCount: Record<string, number> = {};
+  for (const s of approvedSubs ?? []) {
     if (s.challenge_id) {
-      challengeSubCount[s.challenge_id] = (challengeSubCount[s.challenge_id] ?? 0) + 1;
+      challengeApprovedCount[s.challenge_id] = (challengeApprovedCount[s.challenge_id] ?? 0) + 1;
     }
   }
   const challengeById = Object.fromEntries((challenges ?? []).map(c => [c.id, c]));
-  const topChallenges = Object.entries(challengeSubCount)
+  const topChallenges = Object.entries(challengeApprovedCount)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6)
     .map(([id, count]) => ({
@@ -148,6 +152,10 @@ router.get('/', requireAuth, requireAdmin, async (req: Request, res: Response) =
     team_stats: teamStats,
     top_challenges: topChallenges,
   });
+  } catch (err) {
+    console.error('[analytics.GET]', err);
+    res.status(500).json({ error: 'Failed to load analytics. Please try again.' });
+  }
 });
 
 export default router;

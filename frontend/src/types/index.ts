@@ -60,6 +60,15 @@ export interface SubmissionMessage {
   author?: { name: string; role: string };
 }
 
+export interface NewsComment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  message: string;
+  created_at: string;
+  author?: Pick<User, 'id' | 'name' | 'team'>;
+}
+
 export interface NewsPost {
   id: string;
   user_id: string;

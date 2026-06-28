@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { createChallenge } from '../../api/client';
 
@@ -15,8 +16,6 @@ const C = {
   mono: "'JetBrains Mono', monospace",
 };
 
-interface Props { onCreated: () => void; }
-
 const inp: React.CSSProperties = {
   height: 44,
   border: '1px solid #dae2fd',
@@ -31,7 +30,8 @@ const inp: React.CSSProperties = {
   transition: 'border-color 0.15s',
 };
 
-export default function CreateChallenge({ onCreated }: Props) {
+export default function CreateChallenge() {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -48,7 +48,7 @@ export default function CreateChallenge({ onCreated }: Props) {
     setLoading(true);
     try {
       await createChallenge({ title, description, points, due_date: dueDate || undefined, priority, status: 'open', category: category || undefined });
-      onCreated();
+      navigate('/admin/challenges');
     } catch (err: unknown) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error creating challenge');
     } finally {

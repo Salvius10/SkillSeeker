@@ -23,6 +23,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
+  // Handle forced logout dispatched by the API client on 401
+  useEffect(() => {
+    const handle = () => { setToken(null); setUser(null); };
+    window.addEventListener('auth:logout', handle);
+    return () => window.removeEventListener('auth:logout', handle);
+  }, []);
+
   const login = (t: string, u: User) => {
     localStorage.setItem('ss_token', t);
     setToken(t);
@@ -35,7 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const refreshUser = async () => { const u = await getMe(); setUser(u); };
+  const refreshUser = async () => {
+    try { const u = await getMe(); setUser(u); } catch {}
+  };
 
   return <Ctx.Provider value={{ user, token, login, logout, refreshUser }}>{children}</Ctx.Provider>;
 }

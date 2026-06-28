@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Notification, SubmissionMessage } from '../types';
+import type { NewsComment, Notification, SubmissionMessage } from '../types';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
 
@@ -10,6 +10,18 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// On 401, clear storage and dispatch an event — AuthContext listens and navigates to login
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('ss_token');
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+    }
+    return Promise.reject(err);
+  }
+);
 
 export default api;
 
@@ -62,12 +74,19 @@ export const toggleCommentLike = (challengeId: string, commentId: string) =>
 export const getLeaderboard = (period?: 'all' | 'month') =>
   api.get('/leaderboard', { params: period === 'month' ? { period: 'month' } : undefined }).then(r => r.data);
 
-// News
-export const getNews = () => api.get('/news').then(r => r.data);
-export const reactToPost = (id: string, type: 'celebrate' | 'comment') =>
+// News — returns paginated response { posts, total, hasMore, limit, offset }
+export const getNews = (offset = 0, limit = 20) =>
+  api.get('/news', { params: { offset, limit } }).then(r => r.data);
+export const reactToPost = (id: string, type: 'celebrate') =>
   api.post(`/news/${id}/react`, { type }).then(r => r.data);
+export const getNewsComments = (id: string): Promise<NewsComment[]> =>
+  api.get(`/news/${id}/comments`).then(r => r.data);
+export const postNewsComment = (id: string, message: string): Promise<NewsComment> =>
+  api.post(`/news/${id}/comments`, { message }).then(r => r.data);
 
 // Notifications
+export const getUnreadCount = (): Promise<number> =>
+  api.get('/notifications/unread-count').then(r => r.data.count);
 export const getNotifications = () => api.get('/notifications').then(r => r.data);
 export const markAllRead = () => api.put('/notifications/read-all').then(r => r.data);
 export const markNotificationRead = (id: string) =>

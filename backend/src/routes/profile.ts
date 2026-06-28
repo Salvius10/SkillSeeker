@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth';
 const router = Router();
 
 router.get('/', requireAuth, async (req: Request, res: Response) => {
+  try {
   const userId = req.user!.id;
 
   const [
@@ -62,6 +63,10 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     submission_stats: submissionStats,
     points_by_category,
   });
+  } catch (err) {
+    console.error('[profile.GET]', err);
+    res.status(500).json({ error: 'Failed to load profile. Please try again.' });
+  }
 });
 
 export default router;

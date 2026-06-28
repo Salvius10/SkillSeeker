@@ -24,7 +24,7 @@ const card: React.CSSProperties = {
   border: `1px solid ${C.border}`,
   borderRadius: 16,
   padding: 24,
-  boxShadow: '0 4px 12px rgba(26,0,217,0.04)',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.06), 0 8px 24px rgba(26,0,217,0.07)',
 };
 
 function WeekLabel({ week }: { week: string }) {
@@ -35,14 +35,23 @@ function WeekLabel({ week }: { week: string }) {
 export default function Analytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState('');
 
   useEffect(() => {
-    getAnalytics().then(setData).finally(() => setLoading(false));
+    getAnalytics()
+      .then(setData)
+      .catch(() => setFetchError('Failed to load analytics. Please refresh and try again.'))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
     <div style={{ textAlign: 'center', color: C.textMuted, padding: 60 }}>
       <div style={{ width: 36, height: 36, border: `3px solid ${C.border}`, borderTop: `3px solid ${C.primary}`, borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+    </div>
+  );
+  if (fetchError) return (
+    <div style={{ textAlign: 'center', padding: 60 }}>
+      <div style={{ fontSize: 15, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 12, padding: '14px 20px', display: 'inline-block' }}>{fetchError}</div>
     </div>
   );
   if (!data) return null;
@@ -126,21 +135,34 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* ── Challenge overview ─────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      {/* ── Challenge overview — hero + supporting ─────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 14 }}>
+        {/* Hero tile: Points Pool */}
+        <div style={{ ...card, padding: '22px 26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 112 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: `${C.orange}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Target size={19} color={C.orange} />
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: C.mono }}>Points Pool</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 40, fontWeight: 900, color: C.orange, fontFamily: C.mono, lineHeight: 1, letterSpacing: '-1.5px', marginTop: 8 }}>{data.total_points_pool.toLocaleString()}</div>
+            <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 5 }}>available in open challenges</div>
+          </div>
+        </div>
+        {/* Supporting tiles */}
         {[
-          { label: 'Points Pool', sub: 'available in open challenges', val: `${data.total_points_pool.toLocaleString()} pts`, color: C.orange, icon: <Target size={18} color={C.orange} /> },
-          { label: 'Points Awarded', sub: 'distributed to employees', val: data.total_points_awarded.toLocaleString(), color: C.primary, icon: <TrendingUp size={18} color={C.primary} /> },
-          { label: 'Open Challenges', sub: 'accepting submissions now', val: String(data.open_challenges), color: C.success, icon: <CheckCircle2 size={18} color={C.success} /> },
-          { label: 'Avg Review Time', sub: 'days from submit to decision', val: `${data.avg_review_days}d`, color: '#413ff4', icon: <Clock size={18} color="#413ff4" /> },
+          { label: 'Points Awarded', sub: 'distributed to employees', val: data.total_points_awarded.toLocaleString(), color: C.primary, icon: <TrendingUp size={17} color={C.primary} /> },
+          { label: 'Open Challenges', sub: 'accepting submissions', val: String(data.open_challenges), color: C.success, icon: <CheckCircle2 size={17} color={C.success} /> },
+          { label: 'Avg Review Time', sub: 'days to decision', val: `${data.avg_review_days}d`, color: '#413ff4', icon: <Clock size={17} color="#413ff4" /> },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: '16px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: `${s.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+          <div key={s.label} style={{ ...card, padding: '20px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 112 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {s.icon}
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: C.mono, lineHeight: 1 }}>{s.val}</div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginTop: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: s.color, fontFamily: C.mono, lineHeight: 1, letterSpacing: '-1px' }}>{s.val}</div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: C.text, marginTop: 5 }}>{s.label}</div>
               <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{s.sub}</div>
             </div>
           </div>
@@ -153,7 +175,7 @@ export default function Analytics() {
         {/* Top Performers */}
         {data.top_employees.length > 0 && (
           <div style={card}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800, color: C.text }}>Top Performers</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.3px' }}>Top Performers</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '36px 1fr 100px 68px 64px', gap: 10, fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, padding: '0 6px 10px', borderBottom: `1px solid ${C.border}` }}>
                 <span>#</span><span>Employee</span><span>Team</span><span style={{ textAlign: 'right' }}>Points</span><span style={{ textAlign: 'right' }}>Done</span>
@@ -174,7 +196,7 @@ export default function Analytics() {
         {/* Submission Trend */}
         {data.submissions_by_week.length > 0 && (
           <div style={card}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800, color: C.text }}>Submission Activity</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.3px' }}>Submission Activity</h3>
             <div
               role="img"
               aria-label={`Submission activity over the last ${data.submissions_by_week.length} weeks. Peak: ${maxWeekCount}.`}
@@ -199,7 +221,7 @@ export default function Analytics() {
       {/* ── Team Performance ──────────────────────────────────────── */}
       {data.team_stats.length > 0 && (
         <div style={card}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800, color: C.text }}>Team Performance</h3>
+          <h3 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.3px' }}>Team Performance</h3>
           <div role="img" aria-label="Team performance bar chart by total points" style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
             {data.team_stats.map((t, i) => (
               <div key={t.team} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 80px 70px', alignItems: 'center', gap: 12 }}>
@@ -231,7 +253,7 @@ export default function Analytics() {
         {/* Top challenges by submissions */}
         {data.top_challenges.length > 0 && (
           <div style={card}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800, color: C.text }}>Challenge Engagement</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.3px' }}>Challenge Engagement</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', fontSize: 10.5, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 4 }}>
                 <span>Challenge</span><span style={{ textAlign: 'right' }}>Submissions</span>
@@ -262,7 +284,7 @@ export default function Analytics() {
         {/* Points by Category */}
         {data.points_by_category.length > 0 && (
           <div style={card}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 800, color: C.text }}>Points by Category</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: 17, fontWeight: 800, color: C.text, letterSpacing: '-0.3px' }}>Points by Category</h3>
             <div role="img" aria-label="Points awarded by challenge category" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[...data.points_by_category].sort((a, b) => b.points - a.points).map((c, i) => (
                 <div key={c.category} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

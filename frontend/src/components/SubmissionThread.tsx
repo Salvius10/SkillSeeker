@@ -41,6 +41,8 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
   const [resubmitContent, setResubmitContent] = useState('');
   const [resubmitType, setResubmitType] = useState(submissionType || 'text');
   const [resubmitting, setResubmitting] = useState(false);
+  const [sendError, setSendError] = useState('');
+  const [resubmitError, setResubmitError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,11 +55,14 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
 
   const sendMessage = async () => {
     if (!newMsg.trim()) return;
+    setSendError('');
     setSending(true);
     try {
       const msg = await postSubmissionMessage(submissionId, newMsg.trim());
       setMessages(prev => [...prev, msg]);
       setNewMsg('');
+    } catch (e: unknown) {
+      setSendError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to send. Try again.');
     } finally {
       setSending(false);
     }
@@ -65,10 +70,13 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
 
   const handleResubmit = async () => {
     if (!resubmitContent.trim()) return;
+    setResubmitError('');
     setResubmitting(true);
     try {
       await resubmitChallenge(submissionId, resubmitContent.trim(), resubmitType);
       onClose();
+    } catch (e: unknown) {
+      setResubmitError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Resubmit failed. Try again.');
     } finally {
       setResubmitting(false);
     }
@@ -138,6 +146,9 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
                     ))}
                   </div>
                   <textarea value={resubmitContent} onChange={e => setResubmitContent(e.target.value)} placeholder={resubmitType === 'text' ? 'Describe your revised solution…' : 'Paste your URL here…'} rows={3} style={{ border: '1px solid #e2e8f4', borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                  {resubmitError && (
+                    <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 7, padding: '7px 11px' }}>{resubmitError}</div>
+                  )}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={handleResubmit} disabled={resubmitting || !resubmitContent.trim()} style={{ background: '#1a00d9', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: resubmitting ? 'not-allowed' : 'pointer', opacity: resubmitting ? 0.7 : 1 }}>
                       {resubmitting ? 'Submitting…' : 'Submit revision'}
@@ -150,6 +161,9 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
           )}
 
           {/* Message input */}
+          {sendError && (
+            <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 7, padding: '7px 11px', marginBottom: 8 }}>{sendError}</div>
+          )}
           <div style={{ display: 'flex', gap: 10 }}>
             <textarea value={newMsg} onChange={e => setNewMsg(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} placeholder="Add a message… (Enter to send)" rows={2} style={{ flex: 1, border: '1px solid #e2e8f4', borderRadius: 10, padding: '10px 12px', fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none', boxSizing: 'border-box' }} />
             <button onClick={sendMessage} disabled={sending || !newMsg.trim()} style={{ background: '#1a00d9', color: '#fff', border: 'none', borderRadius: 10, padding: '0 18px', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: sending ? 'not-allowed' : 'pointer', opacity: sending ? 0.7 : 1, flexShrink: 0 }}>
