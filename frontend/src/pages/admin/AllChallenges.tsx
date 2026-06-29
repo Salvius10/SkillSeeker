@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { LayoutGrid, Zap, AlertTriangle, Coins, Edit2, X, Check } from 'lucide-react';
-import { getChallenges, updateChallenge } from '../../api/client';
+import { LayoutGrid, AlertTriangle, Coins, Edit2, X, Check, Trash2 } from 'lucide-react';
+import { getChallenges, updateChallenge, deleteChallenge } from '../../api/client';
 import type { Challenge } from '../../types';
 
 const C = {
@@ -54,6 +54,8 @@ export default function AllChallenges() {
   const [editError, setEditError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -84,6 +86,19 @@ export default function AllChallenges() {
       setEditError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error updating challenge. Try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmDelete = async (id: string) => {
+    setDeleting(true);
+    try {
+      await deleteChallenge(id);
+      setConfirmDeleteId(null);
+      load();
+    } catch {
+      setEditError('Failed to delete challenge. Try again.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -176,6 +191,20 @@ export default function AllChallenges() {
                   </button>
                   {!isEditing && c.status === 'open' && (
                     <button onClick={() => quickClose(c.id)} style={{ background: C.surfaceLow, color: C.textSec, border: 'none', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>Close</button>
+                  )}
+                  {!isEditing && (
+                    confirmDeleteId === c.id ? (
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => confirmDelete(c.id)} disabled={deleting} style={{ background: '#d32f2f', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                          {deleting ? '…' : 'Confirm'}
+                        </button>
+                        <button onClick={() => setConfirmDeleteId(null)} style={{ background: C.surfaceLow, color: C.textSec, border: 'none', borderRadius: 8, padding: '5px 8px', fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>No</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setConfirmDeleteId(c.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fee7e0', color: '#d32f2f', border: 'none', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    )
                   )}
                 </div>
               </div>

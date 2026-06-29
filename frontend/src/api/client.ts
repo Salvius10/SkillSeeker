@@ -42,6 +42,8 @@ export const createChallenge = (body: object) =>
   api.post('/challenges', body).then(r => r.data);
 export const updateChallenge = (id: string, body: object) =>
   api.put(`/challenges/${id}`, body).then(r => r.data);
+export const deleteChallenge = (id: string) =>
+  api.delete(`/challenges/${id}`);
 
 // Picks
 export const getMyPicks = (): Promise<string[]> =>

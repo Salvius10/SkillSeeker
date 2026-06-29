@@ -220,4 +220,13 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
   res.json(data);
 });
 
+router.delete('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  const { error } = await supabase
+    .from('challenges')
+    .delete()
+    .eq('id', req.params.id);
+  if (error) { console.error('[challenges.DELETE]', error); res.status(500).json({ error: 'Could not delete challenge' }); return; }
+  res.status(204).end();
+});
+
 export default router;
