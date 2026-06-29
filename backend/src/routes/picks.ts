@@ -18,21 +18,6 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
   const { challenge_id } = req.body;
   if (!challenge_id) { res.status(400).json({ error: 'challenge_id is required' }); return; }
 
-  const { data: existing } = await supabase
-    .from('picks')
-    .select('user_id')
-    .eq('challenge_id', challenge_id)
-    .maybeSingle();
-
-  if (existing) {
-    res.status(409).json({
-      error: existing.user_id === req.user!.id
-        ? 'Already picked'
-        : 'This challenge has already been picked by another team member',
-    });
-    return;
-  }
-
   const { data, error } = await supabase
     .from('picks')
     .insert({ challenge_id, user_id: req.user!.id })
@@ -40,7 +25,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     .single();
   if (error) {
     if (error.code === '23505') {
-      res.status(409).json({ error: 'This challenge has already been picked by another team member' });
+      res.status(409).json({ error: 'Already picked' });
     } else {
       console.error('[picks.POST]', error);
       res.status(500).json({ error: 'Could not pick challenge' });

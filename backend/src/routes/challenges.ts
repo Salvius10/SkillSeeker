@@ -44,19 +44,27 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       entry_count: Array.isArray(c.entry_count) ? (c.entry_count[0]?.count ?? 0) : (c.entry_count ?? 0),
     }));
 
-  const { data: pickRows } = await supabase
-    .from('picks')
-    .select('challenge_id, picker:users!user_id(id, name)');
+  const [{ data: pickRows }, { data: approvedRows }] = await Promise.all([
+    supabase.from('picks').select('challenge_id'),
+    supabase.from('submissions').select('challenge_id').eq('status', 'approved'),
+  ]);
 
-  const pickMap: Record<string, { id: string; name: string }> = {};
+  const pickCountMap: Record<string, number> = {};
   for (const p of (pickRows || [])) {
-    if (p.picker && typeof p.picker === 'object' && !Array.isArray(p.picker)) {
-      pickMap[p.challenge_id] = p.picker as { id: string; name: string };
-    }
+    pickCountMap[p.challenge_id] = (pickCountMap[p.challenge_id] || 0) + 1;
   }
 
-  const withPicks = (rows: ReturnType<typeof flatten>) =>
-    rows.map(c => ({ ...c, picked_by: pickMap[c.id] || null }));
+  const approvedCountMap: Record<string, number> = {};
+  for (const s of (approvedRows || [])) {
+    approvedCountMap[s.challenge_id] = (approvedCountMap[s.challenge_id] || 0) + 1;
+  }
+
+  const withCounts = (rows: ReturnType<typeof flatten>) =>
+    rows.map(c => ({
+      ...c,
+      pick_count: pickCountMap[c.id] || 0,
+      approved_count: approvedCountMap[c.id] || 0,
+    }));
 
   if (req.user!.role === 'employee') {
     const { data: subs } = await supabase
@@ -65,7 +73,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       .eq('user_id', req.user!.id);
 
     const subMap = Object.fromEntries((subs || []).map(s => [s.challenge_id, { id: s.id, status: s.status, type: s.submission_type }]));
-    const enriched = withPicks(flatten(data)).map(c => ({
+    const enriched = withCounts(flatten(data)).map(c => ({
       ...c,
       my_submission_status: subMap[c.id]?.status || null,
       my_submission_id: subMap[c.id]?.id || null,
@@ -75,13 +83,13 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  res.json(withPicks(flatten(data)));
+  res.json(withCounts(flatten(data)));
 });
 
 router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { title, description, category, points, due_date, priority, status } = req.body;
-  if (!title || !description || !points) {
-    res.status(400).json({ error: 'title, description and points are required' });
+  const { title, description, acceptance_criteria, output_format, notes, category, points, due_date, priority, status } = req.body;
+  if (!title || !description || !acceptance_criteria || !output_format || !points) {
+    res.status(400).json({ error: 'title, description, acceptance criteria, output format and points are required' });
     return;
   }
   if (typeof title === 'string' && title.trim().length > MAX_TITLE) {
@@ -96,7 +104,7 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
 
   const { data, error } = await supabase
     .from('challenges')
-    .insert({ title, description, category, points: ptsResult.value, due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id })
+    .insert({ title, description, acceptance_criteria, output_format, notes: notes || '', category, points: ptsResult.value, due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id })
     .select()
     .single();
   if (error) { console.error('[challenges.POST]', error); res.status(500).json({ error: 'Could not create challenge' }); return; }
@@ -165,7 +173,7 @@ router.post('/:id/comments/:commentId/like', requireAuth, async (req: Request, r
 });
 
 router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { title, description, category, points, due_date, priority, status } = req.body;
+  const { title, description, acceptance_criteria, output_format, notes, category, points, due_date, priority, status } = req.body;
 
   if (title !== undefined && typeof title === 'string' && title.trim().length > MAX_TITLE) {
     res.status(400).json({ error: `Title must be ${MAX_TITLE} characters or fewer` }); return;
@@ -183,7 +191,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
 
   const { data, error } = await supabase
     .from('challenges')
-    .update({ title, description, category, points: validatedPoints, due_date, priority, status })
+    .update({ title, description, acceptance_criteria, output_format, notes, category, points: validatedPoints, due_date, priority, status })
     .eq('id', req.params.id)
     .select()
     .single();

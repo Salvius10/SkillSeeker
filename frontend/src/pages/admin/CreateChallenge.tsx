@@ -34,6 +34,9 @@ export default function CreateChallenge() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
+  const [outputFormat, setOutputFormat] = useState('');
+  const [notes, setNotes] = useState('');
   const [category, setCategory] = useState('');
   const [points, setPoints] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -43,11 +46,14 @@ export default function CreateChallenge() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title || !description || !points) { setError('Title, description and points are required'); return; }
+    if (!title || !description || !acceptanceCriteria || !outputFormat || !points) {
+      setError('Title, description, acceptance criteria, output format and points are required');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      await createChallenge({ title, description, points, due_date: dueDate || undefined, priority, status: 'open', category: category || undefined });
+      await createChallenge({ title, description, acceptance_criteria: acceptanceCriteria, output_format: outputFormat, notes: notes || '', points, due_date: dueDate || undefined, priority, status: 'open', category: category || undefined });
       navigate('/admin/challenges');
     } catch (err: unknown) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error creating challenge');
@@ -66,17 +72,47 @@ export default function CreateChallenge() {
         <div style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={lbl}>Challenge Title</label>
+            <label style={lbl}>Challenge Title <span style={{ color: '#d32f2f' }}>*</span></label>
             <input style={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Reduce inference latency by 40%" />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={lbl}>Description</label>
+            <label style={lbl}>Description <span style={{ color: '#d32f2f' }}>*</span></label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Describe the problem, success criteria, and any constraints…"
-              style={{ minHeight: 130, border: '1px solid #dae2fd', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: C.sans, lineHeight: 1.65, resize: 'vertical', outline: 'none', background: C.surface, color: C.text }}
+              placeholder="Describe the problem and any constraints…"
+              style={{ minHeight: 100, border: '1px solid #dae2fd', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: C.sans, lineHeight: 1.65, resize: 'vertical', outline: 'none', background: C.surface, color: C.text }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={lbl}>Acceptance Criteria <span style={{ color: '#d32f2f' }}>*</span></label>
+            <textarea
+              value={acceptanceCriteria}
+              onChange={e => setAcceptanceCriteria(e.target.value)}
+              placeholder="What does a successful submission look like? List the criteria…"
+              style={{ minHeight: 100, border: '1px solid #dae2fd', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: C.sans, lineHeight: 1.65, resize: 'vertical', outline: 'none', background: C.surface, color: C.text }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={lbl}>Output Format <span style={{ color: '#d32f2f' }}>*</span></label>
+            <textarea
+              value={outputFormat}
+              onChange={e => setOutputFormat(e.target.value)}
+              placeholder="How should the output be structured or submitted? e.g. GitHub repo, PDF report, live demo link…"
+              style={{ minHeight: 80, border: '1px solid #dae2fd', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: C.sans, lineHeight: 1.65, resize: 'vertical', outline: 'none', background: C.surface, color: C.text }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={lbl}>Notes <span style={{ color: C.textMuted, fontWeight: 400, textTransform: 'none', fontSize: 11 }}>(optional)</span></label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Any additional context, hints, or resources…"
+              style={{ minHeight: 70, border: '1px solid #dae2fd', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: C.sans, lineHeight: 1.65, resize: 'vertical', outline: 'none', background: C.surface, color: C.text }}
             />
           </div>
 

@@ -11,6 +11,9 @@ export interface Challenge {
   id: string;
   title: string;
   description: string;
+  acceptance_criteria: string;
+  output_format: string;
+  notes: string;
   category: string;
   points: number;
   due_date: string;
@@ -19,7 +22,8 @@ export interface Challenge {
   created_by: string;
   created_at: string;
   entry_count?: number;
-  picked_by?: { id: string; name: string } | null;
+  pick_count?: number;
+  approved_count?: number;
   my_submission_status?: 'pending' | 'approved' | 'rejected' | null;
   my_submission_id?: string | null;
   my_submission_type?: string | null;
@@ -43,6 +47,7 @@ export interface Submission {
   content: string;
   submission_type?: 'text' | 'github_url' | 'presentation_url' | 'folder_url';
   status: 'pending' | 'approved' | 'rejected';
+  points_awarded?: number | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   X, Clock, Flame, Code, FlaskConical, Sparkles,
-  CheckCircle2, XCircle, MessageCircle, Target, AlertTriangle,
+  CheckCircle2, XCircle, MessageCircle, Target,
 } from 'lucide-react';
 import type { Challenge } from '../types';
 
@@ -66,8 +66,9 @@ export default function ChallengeModal({
   const [submitType, setSubmitType] = useState<'text' | 'github_url' | 'presentation_url' | 'folder_url'>('text');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const isPickedByOther = !!(challenge.picked_by && challenge.picked_by.id !== currentUserId);
-  const isPickedByAnyone = !!challenge.picked_by;
+  const approvedCount = challenge.approved_count ?? 0;
+  const nextMultiplier = approvedCount === 0 ? 1 : approvedCount === 1 ? 0.75 : approvedCount === 2 ? 0.5 : 0.25;
+  const nextPoints = Math.round(challenge.points * nextMultiplier);
 
   const handlePick = async () => {
     setPickError('');
@@ -162,8 +163,11 @@ export default function ChallengeModal({
         {/* Meta row */}
         <div style={{ padding: '10px 24px 0', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 26, fontWeight: 900, color: C.orange, fontFamily: C.mono }}>{challenge.points}</span>
-            <span style={{ fontSize: 11, color: C.textMuted, fontFamily: C.mono }}>POINTS</span>
+            <span style={{ fontSize: 26, fontWeight: 900, color: C.orange, fontFamily: C.mono }}>{nextPoints}</span>
+            <div>
+              <div style={{ fontSize: 11, color: C.textMuted, fontFamily: C.mono }}>PTS IF YOU COMPLETE NOW</div>
+              {approvedCount > 0 && <div style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono }}>(base: {challenge.points})</div>}
+            </div>
           </div>
           {challenge.due_date && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: C.textSec }}>
@@ -172,7 +176,7 @@ export default function ChallengeModal({
             </div>
           )}
           <div style={{ fontSize: 13, color: C.textMuted, fontFamily: C.mono }}>
-            {challenge.entry_count ?? 0} entries
+            {approvedCount} completed · {challenge.pick_count ?? 0} picked
           </div>
         </div>
 
@@ -181,15 +185,16 @@ export default function ChallengeModal({
           <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: C.textSec }}>{challenge.description}</p>
         </div>
 
-        {/* Picker info */}
-        {challenge.picked_by && (
-          <div style={{ margin: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, background: isPicked ? 'rgba(16,185,129,0.08)' : 'rgba(254,110,6,0.08)', border: `1px solid ${isPicked ? 'rgba(16,185,129,0.2)' : 'rgba(254,110,6,0.2)'}`, borderRadius: 10, padding: '9px 14px' }}>
-            <Target size={14} color={isPicked ? C.success : C.orange} />
-            <span style={{ fontSize: 13, fontWeight: 700, color: isPicked ? C.success : C.orange }}>
-              {isPicked ? 'You picked this challenge' : `Picked by ${challenge.picked_by.name}`}
-            </span>
-          </div>
-        )}
+        {/* Points tier info */}
+        <div style={{ margin: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(26,0,217,0.04)', border: '1px solid rgba(26,0,217,0.1)', borderRadius: 10, padding: '9px 14px' }}>
+          <Target size={14} color={C.primary} />
+          <span style={{ fontSize: 13, color: C.textSec }}>
+            {approvedCount === 0
+              ? <><strong style={{ color: C.primary }}>Be the first to complete</strong> — earn full <strong style={{ color: C.orange }}>{challenge.points} pts</strong></>
+              : <><strong style={{ color: C.orange }}>{approvedCount}</strong> {approvedCount === 1 ? 'person has' : 'people have'} completed this · completing now earns <strong style={{ color: C.orange }}>{nextPoints} pts</strong> ({Math.round(nextMultiplier * 100)}%)</>
+            }
+          </span>
+        </div>
 
         {/* Submit form */}
         {showSubmit && isPicked && !hasSubmission && (
@@ -218,8 +223,8 @@ export default function ChallengeModal({
         )}
 
         {/* Action buttons */}
-        <div style={{ padding: '14px 24px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderBottom: isPickedByAnyone ? '1px solid #e7edf8' : 'none', marginTop: 6 }}>
-          {!isPickedByAnyone && challenge.status === 'open' && (
+        <div style={{ padding: '14px 24px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
+          {!isPicked && !hasSubmission && challenge.status === 'open' && (
             <button onClick={handlePick} disabled={picking} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', fontSize: 13.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
               {picking ? 'Picking…' : '+ Pick Challenge'}
             </button>
@@ -238,11 +243,6 @@ export default function ChallengeModal({
             <button onClick={handleUnpick} disabled={picking} style={{ background: 'transparent', color: C.textMuted, border: `1px solid #dae2fd`, borderRadius: 10, padding: '9px 14px', fontSize: 13, fontWeight: 600, fontFamily: C.sans, cursor: 'pointer' }}>
               Unpick
             </button>
-          )}
-          {isPickedByOther && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#fff3e8', color: C.orange, border: '1px solid rgba(254,110,6,0.2)', borderRadius: 10, padding: '9px 14px', fontSize: 13, fontWeight: 700 }}>
-              <AlertTriangle size={14} /> Already taken
-            </span>
           )}
           {pickError && <span style={{ fontSize: 12.5, color: C.danger }}>{pickError}</span>}
         </div>

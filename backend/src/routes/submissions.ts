@@ -244,12 +244,22 @@ router.put('/:id/review', requireAuth, requireAdmin, async (req: Request, res: R
   const challenge = sub.challenge as { title: string; points: number; category: string; priority: string };
 
   if (status === 'approved') {
+    // Count already-approved submissions to determine this person's completion rank
+    const { count: priorApprovals } = await supabase
+      .from('submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('challenge_id', sub.challenge_id)
+      .eq('status', 'approved');
+
+    const rank = (priorApprovals ?? 0) + 1;
+    const multiplier = rank === 1 ? 1 : rank === 2 ? 0.75 : rank === 3 ? 0.5 : 0.25;
+    const pointsAwarded = Math.round(challenge.points * multiplier);
+
     const { error: rpcError } = await supabase.rpc('increment_points', {
       user_id: sub.user_id,
-      amount: challenge.points,
+      amount: pointsAwarded,
     });
     if (rpcError) {
-      // Rollback the status change
       await supabase.from('submissions')
         .update({ status: 'pending', reviewed_by: null, reviewed_at: null })
         .eq('id', req.params.id);
@@ -258,20 +268,19 @@ router.put('/:id/review', requireAuth, requireAdmin, async (req: Request, res: R
       return;
     }
 
-    await Promise.all([
-      supabase.from('challenges').update({ status: 'closed' }).eq('id', sub.challenge_id),
-      supabase.from('picks').delete().eq('challenge_id', sub.challenge_id).eq('user_id', sub.user_id),
-    ]);
+    await supabase.from('submissions').update({ points_awarded: pointsAwarded }).eq('id', req.params.id);
+    await supabase.from('picks').delete().eq('challenge_id', sub.challenge_id).eq('user_id', sub.user_id);
 
     await supabase.from('news_posts').insert({
       user_id: sub.user_id,
       challenge_id: sub.challenge_id,
       title: challenge.title,
       content: feedback || '',
-      points_awarded: challenge.points,
+      points_awarded: pointsAwarded,
     });
 
-    await notify(sub.user_id, 'submission_approved', `Your submission was approved! ${challenge.title} · +${challenge.points} pts awarded`);
+    const rankLabel = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
+    await notify(sub.user_id, 'submission_approved', `Your submission was approved! ${challenge.title} · +${pointsAwarded} pts (${rankLabel} to complete)`);
 
     // Milestone badges
     const { count: approvedCount } = await supabase

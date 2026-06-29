@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Clock, Flame, Code, FlaskConical, Sparkles, SearchX, AlertTriangle, Lock } from 'lucide-react';
+import { Search, Clock, Flame, Code, FlaskConical, Sparkles, SearchX } from 'lucide-react';
 import { getChallenges, submitChallenge, getMyPicks, pickChallenge, unpickChallenge } from '../api/client';
 import type { Challenge } from '../types';
 import SubmissionThread from '../components/SubmissionThread';
@@ -44,14 +44,18 @@ const STATUS_TAG: Record<string, { bg: string; fg: string; label: string }> = {
   taken:    { bg: 'rgba(254,110,6,0.09)',  fg: C.orange,   label: 'TAKEN' },
 };
 
-function tagKey(c: Challenge, currentUserId: string) {
+function tagKey(c: Challenge) {
   if (c.my_submission_status === 'pending') return 'pending';
   if (c.my_submission_status === 'approved') return 'approved';
   if (c.my_submission_status === 'rejected') return 'rejected';
   if (c.priority === 'urgent' && c.status === 'open') return 'urgent';
-  if (c.picked_by && c.picked_by.id !== currentUserId) return 'taken';
   if (c.status === 'open') return 'open';
   return 'closed';
+}
+
+function tierPoints(basePoints: number, approvedCount: number): number {
+  const m = approvedCount === 0 ? 1 : approvedCount === 1 ? 0.75 : approvedCount === 2 ? 0.5 : 0.25;
+  return Math.round(basePoints * m);
 }
 
 export default function Challenges() {
@@ -105,7 +109,7 @@ export default function Challenges() {
 
   const counts = {
     all: challenges.length,
-    open: challenges.filter(c => c.status === 'open' && !c.picked_by).length,
+    open: challenges.filter(c => c.status === 'open').length,
     inProgress: challenges.filter(c => c.my_submission_status === 'pending').length,
     urgent: challenges.filter(c => c.priority === 'urgent').length,
   };
@@ -257,13 +261,14 @@ export default function Challenges() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {visible.map((c, index) => {
-            const tk = tagKey(c, currentUserId);
+            const tk = tagKey(c);
             const tag = STATUS_TAG[tk] ?? STATUS_TAG.closed;
             const cat = catConfig(c.category);
             const isPicked = myPicks.includes(c.id);
-            const isPickedByOther = !!(c.picked_by && c.picked_by.id !== currentUserId);
             const hasSub = !!c.my_submission_status;
             const isHovered = hoveredId === c.id;
+            const approvedCount = c.approved_count ?? 0;
+            const nextPts = tierPoints(c.points, approvedCount);
 
             return (
               <div
@@ -287,7 +292,6 @@ export default function Challenges() {
                   animationDelay: `${Math.min(index, 5) * 45}ms`,
                   animationFillMode: 'both',
                   cursor: 'pointer',
-                  opacity: isPickedByOther ? 0.82 : 1,
                   transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
                 }}
               >
@@ -300,11 +304,6 @@ export default function Challenges() {
                     <span style={{ display: 'inline-block', background: tag.bg, color: tag.fg, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
                       {tag.label}
                     </span>
-                    {isPickedByOther && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, color: C.orange, background: 'rgba(254,110,6,0.07)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono, fontWeight: 700 }}>
-                        <Lock size={8} /> {c.picked_by!.name}
-                      </span>
-                    )}
                     {isPicked && !hasSub && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: C.success, background: 'rgba(16,185,129,0.08)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
                         ✓ Picked
@@ -321,16 +320,18 @@ export default function Challenges() {
                         <Clock size={10} /> Due {new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
                     )}
+                    <span style={{ fontFamily: C.mono }}>{approvedCount} completed</span>
                     <span style={{ fontFamily: C.mono }}>{c.entry_count ?? 0} entries</span>
-                    {isPickedByOther && <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: C.orange }}><AlertTriangle size={9} />Taken</span>}
                   </div>
                 </div>
 
                 {/* Right column */}
                 <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, minWidth: 88 }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 32, fontWeight: 900, color: C.orange, fontFamily: C.mono, letterSpacing: '-1px', lineHeight: 1 }}>{c.points}</div>
-                    <div style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.08em', marginTop: 3 }}>PTS</div>
+                    <div style={{ fontSize: 32, fontWeight: 900, color: C.orange, fontFamily: C.mono, letterSpacing: '-1px', lineHeight: 1 }}>{nextPts}</div>
+                    <div style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono, letterSpacing: '0.08em', marginTop: 3 }}>
+                      {approvedCount > 0 ? `PTS (${Math.round(nextPts / c.points * 100)}%)` : 'PTS'}
+                    </div>
                   </div>
                   <span style={{
                     fontSize: 12, fontWeight: 700, fontFamily: C.sans, transition: 'all 0.15s',
