@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { supabase } from '../db';
 import { requireAuth } from '../middleware/auth';
 
@@ -12,17 +11,14 @@ router.post('/sync', async (req: Request, res: Response) => {
   const raw = req.headers.authorization?.slice(7);
   if (!raw) { res.status(401).json({ error: 'Missing token' }); return; }
 
-  let sub: string, email: string, meta: Record<string, string>;
-  try {
-    const payload = jwt.verify(raw, process.env.SUPABASE_JWT_SECRET!) as {
-      sub: string; email?: string; user_metadata?: Record<string, string>;
-    };
-    sub = payload.sub;
-    email = payload.email ?? '';
-    meta = payload.user_metadata ?? {};
-  } catch {
+  const { data: { user: supaUser }, error: authError } = await supabase.auth.getUser(raw);
+  if (authError || !supaUser) {
     res.status(401).json({ error: 'Invalid token' }); return;
   }
+
+  const sub = supaUser.id;
+  const email = supaUser.email ?? '';
+  const meta = (supaUser.user_metadata ?? {}) as Record<string, string>;
 
   // Return existing user without touching the row (preserves manually-set role)
   const { data: existing } = await supabase

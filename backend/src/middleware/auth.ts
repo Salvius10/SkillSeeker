@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import { supabase } from '../db';
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -10,11 +9,8 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 
   const token = header.slice(7);
-  let sub: string;
-  try {
-    const payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET!) as { sub: string };
-    sub = payload.sub;
-  } catch {
+  const { data: { user: supaUser }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !supaUser) {
     res.status(401).json({ error: 'Invalid token' });
     return;
   }
@@ -22,7 +18,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const { data: user, error } = await supabase
     .from('users')
     .select('id, email, name, role')
-    .eq('id', sub)
+    .eq('id', supaUser.id)
     .maybeSingle();
 
   if (error || !user) {

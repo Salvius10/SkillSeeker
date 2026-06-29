@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { supabase } from '../db';
 import { requireAuth } from '../middleware/auth';
 import { sseManager } from '../lib/sseManager';
@@ -11,13 +10,10 @@ router.get('/stream', async (req: Request, res: Response) => {
   const raw = (req.headers.authorization?.slice(7)) || (req.query.token as string);
   if (!raw) { res.status(401).end(); return; }
 
-  let userId: string;
-  try {
-    const payload = jwt.verify(raw, process.env.SUPABASE_JWT_SECRET!) as { sub: string };
-    userId = payload.sub;
-  } catch {
-    res.status(401).end(); return;
-  }
+  const { data: { user: supaUser }, error: authError } = await supabase.auth.getUser(raw);
+  if (authError || !supaUser) { res.status(401).end(); return; }
+
+  const userId = supaUser.id;
 
   // Verify user exists before opening the stream
   const { data: exists } = await supabase
