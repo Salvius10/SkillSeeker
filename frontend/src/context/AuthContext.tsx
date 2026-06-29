@@ -31,10 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 10000);
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.access_token) {
         await handleSession(session.access_token);
       }
+      clearTimeout(timeout);
       setLoading(false);
     });
 
@@ -47,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
   const logout = async () => {
