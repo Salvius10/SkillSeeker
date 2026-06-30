@@ -56,6 +56,7 @@ export default function AllChallenges() {
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -91,12 +92,13 @@ export default function AllChallenges() {
 
   const confirmDelete = async (id: string) => {
     setDeleting(true);
+    setDeleteError('');
     try {
       await deleteChallenge(id);
       setConfirmDeleteId(null);
       load();
     } catch {
-      setEditError('Failed to delete challenge. Try again.');
+      setDeleteError('Failed to delete. Try again.');
     } finally {
       setDeleting(false);
     }
@@ -239,6 +241,7 @@ export default function AllChallenges() {
           );
         })}
         {loadError && <div style={{ textAlign: 'center', color: '#d32f2f', background: '#fee7e0', borderRadius: 8, padding: '12px 20px', margin: '12px 20px', fontSize: 13.5 }}>{loadError}</div>}
+        {deleteError && <div style={{ textAlign: 'center', color: '#d32f2f', background: '#fee7e0', borderRadius: 8, padding: '12px 20px', margin: '12px 20px', fontSize: 13.5 }}>{deleteError}</div>}
         {!loadError && challenges.length === 0 && <div style={{ textAlign: 'center', color: C.textMuted, padding: 40, fontSize: 14 }}>No challenges yet.</div>}
       </div>
     </div>

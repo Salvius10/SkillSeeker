@@ -229,10 +229,16 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
 });
 
 router.delete('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { error } = await supabase
-    .from('challenges')
-    .delete()
-    .eq('id', req.params.id);
+  const id = req.params.id;
+  // Delete child records that don't have ON DELETE CASCADE
+  await supabase.from('submission_messages').delete().in(
+    'submission_id',
+    (await supabase.from('submissions').select('id').eq('challenge_id', id)).data?.map(s => s.id) ?? []
+  );
+  await supabase.from('submissions').delete().eq('challenge_id', id);
+  await supabase.from('news_posts').delete().eq('challenge_id', id);
+
+  const { error } = await supabase.from('challenges').delete().eq('id', id);
   if (error) { console.error('[challenges.DELETE]', error); res.status(500).json({ error: 'Could not delete challenge' }); return; }
   res.status(204).end();
 });

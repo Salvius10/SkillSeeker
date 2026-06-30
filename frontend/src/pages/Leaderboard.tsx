@@ -152,8 +152,8 @@ export default function Leaderboard() {
             </div>
           )}
 
-          {/* Table */}
-          {entries.length > 0 && (
+          {/* Table — ranks 4 and below */}
+          {rest.length > 0 && (
             <div style={{
               background: C.surface,
               border: '1px solid rgba(26,0,217,0.07)',
@@ -170,7 +170,7 @@ export default function Leaderboard() {
               }}>
                 <span>#</span><span>Employee</span><span style={{ textAlign: 'right' }}>Done</span><span style={{ textAlign: 'right' }}>Points</span>
               </div>
-              {entries.map((e, idx) => {
+              {rest.map((e, idx) => {
                 const isMe = e.user_id === currentUserId;
                 const rankColor = RANK_ACCENT[e.rank];
                 return (
@@ -179,7 +179,7 @@ export default function Leaderboard() {
                     style={{
                       display: 'grid', gridTemplateColumns: '52px 1fr 80px 110px',
                       padding: '13px 22px',
-                      borderBottom: idx < entries.length - 1 ? '1px solid rgba(26,0,217,0.05)' : 'none',
+                      borderBottom: idx < rest.length - 1 ? '1px solid rgba(26,0,217,0.05)' : 'none',
                       alignItems: 'center',
                       background: isMe
                         ? 'linear-gradient(90deg, rgba(26,0,217,0.04) 0%, rgba(26,0,217,0.02) 50%, transparent 100%)'

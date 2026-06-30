@@ -179,17 +179,9 @@ export default function Profile() {
                   </div>
                 </div>
                 {rank > 0 && (
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <div style={{ textAlign: 'center', background: C.surfaceLow, borderRadius: 12, padding: '8px 14px' }}>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: C.orange, fontFamily: C.mono }}>#{rank}</div>
-                      <div style={{ fontSize: 10, color: C.textMuted }}>overall{total_employees ? ` of ${total_employees}` : ''}</div>
-                    </div>
-                    {(team_rank ?? 0) > 0 && (
-                      <div style={{ textAlign: 'center', background: C.surfaceLow, borderRadius: 12, padding: '8px 14px' }}>
-                        <div style={{ fontSize: 18, fontWeight: 900, color: C.primary, fontFamily: C.mono }}>#{team_rank}</div>
-                        <div style={{ fontSize: 10, color: C.textMuted }}>on team{team_size ? ` of ${team_size}` : ''}</div>
-                      </div>
-                    )}
+                  <div style={{ textAlign: 'center', background: C.surfaceLow, borderRadius: 12, padding: '8px 14px' }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: C.orange, fontFamily: C.mono }}>#{rank}</div>
+                    <div style={{ fontSize: 10, color: C.textMuted }}>overall{total_employees ? ` of ${total_employees}` : ''}</div>
                   </div>
                 )}
               </div>
