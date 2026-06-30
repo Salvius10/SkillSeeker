@@ -51,7 +51,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
   const pickersMap: Record<string, { id: string; name: string }[]> = {};
   for (const p of (pickRows || [])) {
-    const u = p.user as { id: string; name: string } | null;
+    const raw = p.user as unknown;
+    const u = (Array.isArray(raw) ? raw[0] : raw) as { id: string; name: string } | null;
     if (!u) continue;
     if (!pickersMap[p.challenge_id]) pickersMap[p.challenge_id] = [];
     pickersMap[p.challenge_id].push({ id: u.id, name: u.name });
