@@ -21,6 +21,15 @@ const C = {
   mono: "'JetBrains Mono', monospace",
 };
 
+function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
+  return (
+    <div style={{ borderLeft: `3px solid ${color}`, paddingLeft: 12 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, color, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: 5 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
 function catConfig(cat: string): { color: string; bg: string; icon: React.ReactNode } {
   const c = cat.toLowerCase();
   if (c.includes('cod') || c.includes('dev') || c.includes('eng'))
@@ -180,50 +189,72 @@ export default function ChallengeModal({
           </div>
         </div>
 
-        {/* Description */}
-        <div style={{ padding: '14px 24px 0' }}>
-          <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: C.textSec }}>{challenge.description}</p>
-        </div>
+        {/* Scrollable body */}
+        <div style={{ maxHeight: 380, overflowY: 'auto', padding: '14px 24px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <Section label="Description" color={C.primary}>
+            <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.7, color: C.textSec, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{challenge.description}</p>
+          </Section>
 
-        {/* Points tier info */}
-        <div style={{ margin: '14px 24px 0', display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(26,0,217,0.04)', border: '1px solid rgba(26,0,217,0.1)', borderRadius: 10, padding: '9px 14px' }}>
-          <Target size={14} color={C.primary} />
-          <span style={{ fontSize: 13, color: C.textSec }}>
-            {approvedCount === 0
-              ? <><strong style={{ color: C.primary }}>Be the first to complete</strong> — earn full <strong style={{ color: C.orange }}>{challenge.points} pts</strong></>
-              : <><strong style={{ color: C.orange }}>{approvedCount}</strong> {approvedCount === 1 ? 'person has' : 'people have'} completed this · completing now earns <strong style={{ color: C.orange }}>{nextPoints} pts</strong> ({Math.round(nextMultiplier * 100)}%)</>
-            }
-          </span>
-        </div>
+          {challenge.acceptance_criteria && (
+            <Section label="Acceptance Criteria" color="#10b981">
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: C.textSec, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{challenge.acceptance_criteria}</p>
+            </Section>
+          )}
 
-        {/* Submit form */}
-        {showSubmit && isPicked && !hasSubmission && (
-          <div style={{ margin: '16px 24px 0', background: C.surfaceLow, border: '1px solid #dae2fd', borderRadius: 14, padding: '16px' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Submit your work</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-              {FORMAT_OPTIONS.map(f => (
-                <button key={f.key} type="button" onClick={() => setSubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 8, border: `2px solid ${submitType === f.key ? C.primary : '#dae2fd'}`, background: submitType === f.key ? '#eaedff' : C.surface, color: submitType === f.key ? C.primary : C.textSec, fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>{f.label}</button>
-              ))}
-            </div>
-            <textarea
-              value={submitContent}
-              onChange={e => setSubmitContent(e.target.value)}
-              placeholder={submitType === 'text' ? 'Describe your solution…' : 'Paste your URL here…'}
-              rows={4}
-              style={{ width: '100%', border: '1px solid #dae2fd', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, fontFamily: C.sans, resize: 'vertical', outline: 'none', background: C.surface, boxSizing: 'border-box' }}
-            />
-            {submitError && <div style={{ fontSize: 12.5, color: C.danger, background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 8, padding: '8px 12px', marginTop: 8 }}>{submitError}</div>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button onClick={handleSubmit} disabled={submitting} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 20px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
-                {submitting ? 'Submitting…' : 'Confirm Submit'}
-              </button>
-              <button onClick={() => { setShowSubmit(false); setSubmitError(''); }} style={{ background: C.surface, color: C.textSec, border: '1px solid #dae2fd', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>Cancel</button>
-            </div>
+          {challenge.output_format && (
+            <Section label="Output Format" color="#8b5cf6">
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: C.textSec, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{challenge.output_format}</p>
+            </Section>
+          )}
+
+          {challenge.notes && (
+            <Section label="Notes" color={C.orange}>
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: C.textSec, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{challenge.notes}</p>
+            </Section>
+          )}
+
+          {/* Points tier info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(26,0,217,0.04)', border: '1px solid rgba(26,0,217,0.1)', borderRadius: 10, padding: '9px 14px' }}>
+            <Target size={14} color={C.primary} />
+            <span style={{ fontSize: 13, color: C.textSec }}>
+              {approvedCount === 0
+                ? <><strong style={{ color: C.primary }}>Be the first to complete</strong> — earn full <strong style={{ color: C.orange }}>{challenge.points} pts</strong></>
+                : <><strong style={{ color: C.orange }}>{approvedCount}</strong> {approvedCount === 1 ? 'person has' : 'people have'} completed this · completing now earns <strong style={{ color: C.orange }}>{nextPoints} pts</strong> ({Math.round(nextMultiplier * 100)}%)</>
+              }
+            </span>
           </div>
-        )}
 
-        {/* Action buttons */}
-        <div style={{ padding: '14px 24px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
+          {/* Submit form */}
+          {showSubmit && isPicked && !hasSubmission && (
+            <div style={{ background: C.surfaceLow, border: '1px solid #dae2fd', borderRadius: 14, padding: '16px' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Submit your work</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                {FORMAT_OPTIONS.map(f => (
+                  <button key={f.key} type="button" onClick={() => setSubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 8, border: `2px solid ${submitType === f.key ? C.primary : '#dae2fd'}`, background: submitType === f.key ? '#eaedff' : C.surface, color: submitType === f.key ? C.primary : C.textSec, fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>{f.label}</button>
+                ))}
+              </div>
+              <textarea
+                value={submitContent}
+                onChange={e => setSubmitContent(e.target.value)}
+                placeholder={submitType === 'text' ? 'Describe your solution…' : 'Paste your URL here…'}
+                rows={4}
+                style={{ width: '100%', border: '1px solid #dae2fd', borderRadius: 10, padding: '10px 12px', fontSize: 13.5, fontFamily: C.sans, resize: 'vertical', outline: 'none', background: C.surface, boxSizing: 'border-box' }}
+              />
+              {submitError && <div style={{ fontSize: 12.5, color: C.danger, background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 8, padding: '8px 12px', marginTop: 8 }}>{submitError}</div>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button onClick={handleSubmit} disabled={submitting} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 20px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
+                  {submitting ? 'Submitting…' : 'Confirm Submit'}
+                </button>
+                <button onClick={() => { setShowSubmit(false); setSubmitError(''); }} style={{ background: C.surface, color: C.textSec, border: '1px solid #dae2fd', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ height: 6 }} /> {/* bottom padding inside scroll */}
+        </div>
+
+        {/* Action buttons — always visible, outside scroll */}
+        <div style={{ padding: '12px 24px', borderTop: '1px solid #f2f3ff', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {!isPicked && !hasSubmission && challenge.status === 'open' && (
             <button onClick={handlePick} disabled={picking} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', fontSize: 13.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
               {picking ? 'Picking…' : '+ Pick Challenge'}
