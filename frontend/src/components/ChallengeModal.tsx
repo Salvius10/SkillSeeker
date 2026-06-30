@@ -184,8 +184,31 @@ export default function ChallengeModal({
               Due {new Date(challenge.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </div>
           )}
-          <div style={{ fontSize: 13, color: C.textMuted, fontFamily: C.mono }}>
-            {approvedCount} completed · {challenge.pick_count ?? 0} picked
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, color: C.textMuted, fontFamily: C.mono }}>{approvedCount} completed</span>
+            {challenge.pickers && challenge.pickers.length > 0 ? (
+              <>
+                <span style={{ fontSize: 13, color: C.textMuted, fontFamily: C.mono }}>·</span>
+                <span style={{ fontSize: 12, color: C.textMuted, fontFamily: C.mono }}>picked by</span>
+                {challenge.pickers.map(p => {
+                  const isMe = p.id === currentUserId;
+                  return (
+                    <span key={p.id} style={{
+                      display: 'inline-flex', alignItems: 'center',
+                      background: isMe ? C.primary : '#eaedff',
+                      color: isMe ? '#fff' : C.primary,
+                      fontSize: 11.5, fontWeight: 700,
+                      padding: '2px 9px', borderRadius: 20,
+                      fontFamily: C.sans,
+                    }}>
+                      {isMe ? 'You' : p.name}
+                    </span>
+                  );
+                })}
+              </>
+            ) : (
+              <span style={{ fontSize: 13, color: C.textMuted, fontFamily: C.mono }}>· 0 picked</span>
+            )}
           </div>
         </div>
 

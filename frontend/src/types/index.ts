@@ -24,6 +24,7 @@ export interface Challenge {
   entry_count?: number;
   pick_count?: number;
   approved_count?: number;
+  pickers?: { id: string; name: string }[];
   my_submission_status?: 'pending' | 'approved' | 'rejected' | null;
   my_submission_id?: string | null;
   my_submission_type?: string | null;

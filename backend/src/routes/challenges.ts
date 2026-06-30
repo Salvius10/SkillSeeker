@@ -45,13 +45,16 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     }));
 
   const [{ data: pickRows }, { data: approvedRows }] = await Promise.all([
-    supabase.from('picks').select('challenge_id'),
+    supabase.from('picks').select('challenge_id, user:users!user_id(id, name)'),
     supabase.from('submissions').select('challenge_id').eq('status', 'approved'),
   ]);
 
-  const pickCountMap: Record<string, number> = {};
+  const pickersMap: Record<string, { id: string; name: string }[]> = {};
   for (const p of (pickRows || [])) {
-    pickCountMap[p.challenge_id] = (pickCountMap[p.challenge_id] || 0) + 1;
+    const u = p.user as { id: string; name: string } | null;
+    if (!u) continue;
+    if (!pickersMap[p.challenge_id]) pickersMap[p.challenge_id] = [];
+    pickersMap[p.challenge_id].push({ id: u.id, name: u.name });
   }
 
   const approvedCountMap: Record<string, number> = {};
@@ -62,7 +65,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   const withCounts = (rows: ReturnType<typeof flatten>) =>
     rows.map(c => ({
       ...c,
-      pick_count: pickCountMap[c.id] || 0,
+      pickers: pickersMap[c.id] || [],
+      pick_count: (pickersMap[c.id] || []).length,
       approved_count: approvedCountMap[c.id] || 0,
     }));
 

@@ -304,10 +304,25 @@ export default function Challenges() {
                     <span style={{ display: 'inline-block', background: tag.bg, color: tag.fg, fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
                       {tag.label}
                     </span>
-                    {isPicked && !hasSub && (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10.5, fontWeight: 700, color: C.success, background: 'rgba(16,185,129,0.08)', padding: '3px 8px', borderRadius: 20, fontFamily: C.mono }}>
-                        ✓ Picked
-                      </span>
+                    {c.pickers && c.pickers.length > 0 && (
+                      <>
+                        <span style={{ fontSize: 10, color: C.textMuted, fontFamily: C.mono, alignSelf: 'center' }}>picked by</span>
+                        {c.pickers.map(p => {
+                          const isMe = p.id === currentUserId;
+                          return (
+                            <span key={p.id} style={{
+                              display: 'inline-flex', alignItems: 'center',
+                              background: isMe ? C.primary : '#eaedff',
+                              color: isMe ? '#fff' : C.primary,
+                              fontSize: 10.5, fontWeight: 700,
+                              padding: '2px 9px', borderRadius: 20,
+                              fontFamily: C.sans,
+                            }}>
+                              {isMe ? 'You' : p.name}
+                            </span>
+                          );
+                        })}
+                      </>
                     )}
                   </div>
 
