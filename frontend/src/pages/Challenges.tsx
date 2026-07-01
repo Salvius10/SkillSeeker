@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Clock, Flame, Code, FlaskConical, Sparkles, SearchX } from 'lucide-react';
-import { getChallenges, submitChallenge, getMyPicks, pickChallenge, unpickChallenge } from '../api/client';
+import { getChallenges, submitChallenge, getMyPicks, pickChallenge, unpickChallenge, joinTeam } from '../api/client';
 import type { Challenge } from '../types';
 import SubmissionThread from '../components/SubmissionThread';
 import ChallengeModal from '../components/ChallengeModal';
@@ -126,6 +126,12 @@ export default function Challenges() {
   const handleUnpick = async (challengeId: string) => {
     await unpickChallenge(challengeId);
     setMyPicks(p => p.filter(id => id !== challengeId));
+    load();
+  };
+
+  const handleJoinTeam = async (inviteCode: string) => {
+    const pick = await joinTeam(inviteCode);
+    setMyPicks(p => [...p, pick.challenge_id]);
     load();
   };
 
@@ -393,6 +399,7 @@ export default function Challenges() {
           submissionType={modalChallenge.my_submission_type}
           onPick={() => handlePick(modalChallenge.id)}
           onUnpick={() => handleUnpick(modalChallenge.id)}
+          onJoinTeam={handleJoinTeam}
           onSubmitSuccess={() => { setModalChallenge(null); load(); }}
           onViewSubmissionThread={() => { openThread(modalChallenge); setModalChallenge(null); }}
           onClose={() => setModalChallenge(null)}

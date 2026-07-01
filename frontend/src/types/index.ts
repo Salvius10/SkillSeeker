@@ -30,6 +30,12 @@ export interface Challenge {
   my_submission_type?: string | null;
 }
 
+export interface ChallengeTeam {
+  id: string;
+  lead_id: string;
+  invite_code: string | null; // only present when the caller is the lead
+}
+
 export interface ChallengeComment {
   id: string;
   challenge_id: string;

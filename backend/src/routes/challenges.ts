@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../db';
 import { requireAuth, requireAdmin } from '../middleware/auth';
-import { sseManager } from '../lib/sseManager';
-import { notifyAllEmployees } from '../lib/notify';
+import { notifyAllEmployees, notifyUsers } from '../lib/notify';
 
 const router = Router();
 
@@ -72,12 +71,42 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     }));
 
   if (req.user!.role === 'employee') {
-    const { data: subs } = await supabase
+    const { data: mySubs } = await supabase
       .from('submissions')
-      .select('id, challenge_id, status, submission_type')
+      .select('id, challenge_id, status, submission_type, user_id')
       .eq('user_id', req.user!.id);
 
-    const subMap = Object.fromEntries((subs || []).map(s => [s.challenge_id, { id: s.id, status: s.status, type: s.submission_type }]));
+    // Teammates share one submission — surface it to everyone on the team, not just whoever hit Submit.
+    const { data: myTeamPicks } = await supabase
+      .from('picks')
+      .select('challenge_id, team_id')
+      .eq('user_id', req.user!.id)
+      .not('team_id', 'is', null);
+
+    let teamSubs: typeof mySubs = [];
+    if (myTeamPicks?.length) {
+      const teamIds = myTeamPicks.map(p => p.team_id);
+      const { data: teammatePicks } = await supabase
+        .from('picks')
+        .select('challenge_id, user_id')
+        .in('team_id', teamIds as string[]);
+
+      const teammateIdsByChallenge: Record<string, string[]> = {};
+      for (const p of teammatePicks ?? []) {
+        (teammateIdsByChallenge[p.challenge_id] ??= []).push(p.user_id);
+      }
+
+      const { data: subsOnMyChallenges } = await supabase
+        .from('submissions')
+        .select('id, challenge_id, status, submission_type, user_id')
+        .in('challenge_id', myTeamPicks.map(p => p.challenge_id));
+
+      teamSubs = (subsOnMyChallenges ?? []).filter(s => (teammateIdsByChallenge[s.challenge_id] ?? []).includes(s.user_id));
+    }
+
+    const subMap = Object.fromEntries(
+      [...teamSubs, ...(mySubs || [])].map(s => [s.challenge_id, { id: s.id, status: s.status, type: s.submission_type }])
+    );
     const enriched = withCounts(flatten(data)).map(c => ({
       ...c,
       my_submission_status: subMap[c.id]?.status || null,
@@ -202,13 +231,12 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
     .single();
   if (error) { console.error('[challenges.PUT]', error); res.status(500).json({ error: 'Could not update challenge' }); return; }
 
-  const { data: pick } = await supabase
+  const { data: picks } = await supabase
     .from('picks')
     .select('user_id')
-    .eq('challenge_id', req.params.id)
-    .maybeSingle();
+    .eq('challenge_id', req.params.id);
 
-  if (pick) {
+  if (picks?.length) {
     let notifMsg: string;
     let notifType: string;
     if (status === 'closed') {
@@ -224,10 +252,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
       notifType = 'challenge_updated';
     }
 
-    const { data: notif } = await supabase.from('notifications').insert({
-      user_id: pick.user_id, type: notifType, message: notifMsg,
-    }).select().single();
-    if (notif) sseManager.emit(pick.user_id, notif);
+    await notifyUsers(picks.map(p => p.user_id), notifType, notifMsg);
   }
 
   res.json(data);

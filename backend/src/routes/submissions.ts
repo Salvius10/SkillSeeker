@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../db';
 import { requireAuth, requireAdmin } from '../middleware/auth';
-import { notify, notifyAdmins } from '../lib/notify';
+import { notify, notifyAdmins, notifyUsers } from '../lib/notify';
 
 const router = Router();
 
@@ -64,13 +64,19 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
   const { data: pick } = await supabase
     .from('picks')
-    .select('id')
+    .select('id, team_id')
     .eq('challenge_id', challenge_id)
     .eq('user_id', req.user!.id)
     .maybeSingle();
   if (!pick) {
     res.status(403).json({ error: 'You must pick this challenge before submitting' });
     return;
+  }
+
+  let teamMemberIds = [req.user!.id];
+  if (pick.team_id) {
+    const { data: teamPicks } = await supabase.from('picks').select('user_id').eq('team_id', pick.team_id);
+    teamMemberIds = (teamPicks ?? []).map(p => p.user_id);
   }
 
   const { data: challenge } = await supabase
@@ -101,16 +107,15 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     .from('submissions')
     .select('id')
     .eq('challenge_id', challenge_id)
-    .eq('user_id', req.user!.id)
-    .maybeSingle();
-  if (existing) {
-    res.status(409).json({ error: 'Already submitted to this challenge' });
+    .in('user_id', teamMemberIds);
+  if (existing?.length) {
+    res.status(409).json({ error: teamMemberIds.length > 1 ? 'Your team already submitted to this challenge' : 'Already submitted to this challenge' });
     return;
   }
 
   const { data, error } = await supabase
     .from('submissions')
-    .insert({ challenge_id, user_id: req.user!.id, content: content.trim(), submission_type: sType, status: 'pending' })
+    .insert({ challenge_id, user_id: req.user!.id, content: content.trim(), submission_type: sType, status: 'pending', team_member_ids: teamMemberIds })
     .select()
     .single();
   if (error) { console.error('[submissions.POST]', error); res.status(500).json({ error: 'Could not create submission' }); return; }
@@ -255,32 +260,50 @@ router.put('/:id/review', requireAuth, requireAdmin, async (req: Request, res: R
     const multiplier = rank === 1 ? 1 : rank === 2 ? 0.75 : rank === 3 ? 0.5 : 0.25;
     const pointsAwarded = Math.round(challenge.points * multiplier);
 
-    const { error: rpcError } = await supabase.rpc('increment_points', {
-      user_id: sub.user_id,
-      amount: pointsAwarded,
-    });
-    if (rpcError) {
-      await supabase.from('submissions')
-        .update({ status: 'pending', reviewed_by: null, reviewed_at: null })
-        .eq('id', req.params.id);
-      console.error('[submissions.PUT review rpc]', rpcError);
-      res.status(500).json({ error: 'Failed to award points. Submission reverted to pending — please try approving again.' });
-      return;
+    // Split evenly across whoever was on the team when the submission was made
+    // (snapshotted on submissions.team_member_ids) — remainder goes to the submitter.
+    const memberIds: string[] = sub.team_member_ids?.length ? sub.team_member_ids : [sub.user_id];
+    const share = Math.floor(pointsAwarded / memberIds.length);
+    const remainder = pointsAwarded - share * memberIds.length;
+    const recipients = memberIds.map((id: string) => ({ id, amount: share + (id === sub.user_id ? remainder : 0) }));
+
+    for (const recipient of recipients) {
+      const { error: rpcError } = await supabase.rpc('increment_points', {
+        user_id: recipient.id,
+        amount: recipient.amount,
+      });
+      if (rpcError) {
+        await supabase.from('submissions')
+          .update({ status: 'pending', reviewed_by: null, reviewed_at: null })
+          .eq('id', req.params.id);
+        console.error('[submissions.PUT review rpc]', rpcError);
+        res.status(500).json({ error: 'Failed to award points. Submission reverted to pending — please try approving again.' });
+        return;
+      }
     }
 
     await supabase.from('submissions').update({ points_awarded: pointsAwarded }).eq('id', req.params.id);
-    await supabase.from('picks').delete().eq('challenge_id', sub.challenge_id).eq('user_id', sub.user_id);
+    await supabase.from('picks').delete().eq('challenge_id', sub.challenge_id).in('user_id', memberIds);
 
+    const splitNote = memberIds.length > 1
+      ? ` Points split evenly across your ${memberIds.length}-person team (+${share} pts each).`
+      : '';
     await supabase.from('news_posts').insert({
       user_id: sub.user_id,
       challenge_id: sub.challenge_id,
       title: challenge.title,
-      content: feedback || '',
+      content: (feedback || '') + splitNote,
       points_awarded: pointsAwarded,
     });
 
     const rankLabel = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
     await notify(sub.user_id, 'submission_approved', `Your submission was approved! ${challenge.title} · +${pointsAwarded} pts (${rankLabel} to complete)`);
+
+    const teammateIds = memberIds.filter((id: string) => id !== sub.user_id);
+    if (teammateIds.length) {
+      await notifyUsers(teammateIds, 'team_points_awarded',
+        `${challenge.title} was approved — your team earned +${pointsAwarded} pts, split across ${memberIds.length} members`);
+    }
 
     // Milestone badges
     const { count: approvedCount } = await supabase

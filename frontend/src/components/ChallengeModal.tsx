@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   X, Clock, Flame, Code, FlaskConical, Sparkles,
-  CheckCircle2, XCircle, MessageCircle, Target,
+  CheckCircle2, XCircle, MessageCircle, Target, Users, Copy, Check,
 } from 'lucide-react';
-import type { Challenge } from '../types';
+import type { Challenge, ChallengeTeam } from '../types';
+import { getChallengeTeam, getTeamInviteCode } from '../api/client';
 
 const C = {
   primary: '#1a00d9',
@@ -56,6 +57,7 @@ interface Props {
   submissionType?: string | null;
   onPick: () => Promise<void>;
   onUnpick: () => Promise<void>;
+  onJoinTeam?: (inviteCode: string) => Promise<void>;
   onSubmitSuccess: () => void;
   onViewSubmissionThread: () => void;
   onClose: () => void;
@@ -65,7 +67,7 @@ interface Props {
 export default function ChallengeModal({
   challenge, currentUserId, isPicked, hasSubmission,
   submissionStatus, submissionId, submissionType,
-  onPick, onUnpick, onSubmitSuccess, onViewSubmissionThread, onClose,
+  onPick, onUnpick, onJoinTeam, onSubmitSuccess, onViewSubmissionThread, onClose,
   submitChallengeFn,
 }: Props) {
   const [picking, setPicking] = useState(false);
@@ -78,6 +80,26 @@ export default function ChallengeModal({
   const approvedCount = challenge.approved_count ?? 0;
   const nextMultiplier = approvedCount === 0 ? 1 : approvedCount === 1 ? 0.75 : approvedCount === 2 ? 0.5 : 0.25;
   const nextPoints = Math.round(challenge.points * nextMultiplier);
+
+  // Team-up state (invite a teammate onto my pick)
+  const [myTeam, setMyTeam] = useState<ChallengeTeam | null>(null);
+  const [teamMembers, setTeamMembers] = useState<{ id: string; name: string }[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  // Join-with-code state (before I've picked anything)
+  const [showJoin, setShowJoin] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState('');
+
+  useEffect(() => {
+    if (!isPicked || hasSubmission) { setMyTeam(null); setTeamMembers([]); return; }
+    getChallengeTeam(challenge.id)
+      .then(res => { setMyTeam(res.team); setTeamMembers(res.members); })
+      .catch(() => {});
+  }, [challenge.id, isPicked, hasSubmission]);
 
   const handlePick = async () => {
     setPickError('');
@@ -93,6 +115,40 @@ export default function ChallengeModal({
     try { await onUnpick(); } catch (e: unknown) {
       setPickError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not unpick. Try again.');
     } finally { setPicking(false); }
+  };
+
+  const handleTeamUp = async () => {
+    setTeamError('');
+    setTeamLoading(true);
+    try {
+      await getTeamInviteCode(challenge.id);
+      const res = await getChallengeTeam(challenge.id);
+      setMyTeam(res.team);
+      setTeamMembers(res.members);
+    } catch (e: unknown) {
+      setTeamError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not create invite. Try again.');
+    } finally { setTeamLoading(false); }
+  };
+
+  const handleCopyInvite = () => {
+    if (!myTeam?.invite_code) return;
+    navigator.clipboard.writeText(myTeam.invite_code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  const handleJoinTeam = async () => {
+    if (!joinCode.trim() || !onJoinTeam) return;
+    setJoinError('');
+    setJoining(true);
+    try {
+      await onJoinTeam(joinCode.trim());
+      setShowJoin(false);
+      setJoinCode('');
+    } catch (e: unknown) {
+      setJoinError((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not join. Check the code and try again.');
+    } finally { setJoining(false); }
   };
 
   const handleSubmit = async () => {
@@ -283,6 +339,26 @@ export default function ChallengeModal({
               {picking ? 'Picking…' : '+ Pick Challenge'}
             </button>
           )}
+          {!isPicked && !hasSubmission && challenge.status === 'open' && onJoinTeam && (
+            showJoin ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  value={joinCode}
+                  onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="CODE"
+                  maxLength={8}
+                  style={{ width: 90, border: '1px solid #dae2fd', borderRadius: 8, padding: '7px 10px', fontSize: 13, fontFamily: C.mono, textTransform: 'uppercase', outline: 'none' }}
+                />
+                <button onClick={handleJoinTeam} disabled={joining || !joinCode.trim()} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                  {joining ? 'Joining…' : 'Join Team'}
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowJoin(true)} style={{ background: 'transparent', color: C.textMuted, border: 'none', fontSize: 12.5, fontWeight: 600, fontFamily: C.sans, cursor: 'pointer', textDecoration: 'underline' }}>
+                Have an invite code?
+              </button>
+            )
+          )}
           {isPicked && !hasSubmission && !showSubmit && (
             <button onClick={() => setShowSubmit(true)} style={{ background: C.primary, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 20px', fontSize: 13.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer', boxShadow: '0 2px 8px rgba(26,0,217,0.2)' }}>
               Submit Work
@@ -294,11 +370,30 @@ export default function ChallengeModal({
             </button>
           )}
           {isPicked && !hasSubmission && (
+            myTeam ? (
+              myTeam.invite_code ? (
+                <button onClick={handleCopyInvite} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: C.surfaceLow, color: C.primary, border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 14px', fontSize: 12.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                  {copied ? <Check size={13} /> : <Copy size={13} />} {myTeam.invite_code}
+                </button>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: C.textMuted, fontFamily: C.sans }}>
+                  <Users size={13} /> Teamed up with {teamMembers.filter(m => m.id !== currentUserId).map(m => m.name).join(', ') || 'a teammate'}
+                </span>
+              )
+            ) : (
+              <button onClick={handleTeamUp} disabled={teamLoading} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'transparent', color: C.primary, border: `1px solid ${C.border}`, borderRadius: 10, padding: '9px 14px', fontSize: 12.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>
+                <Users size={13} /> {teamLoading ? 'Creating…' : 'Team Up'}
+              </button>
+            )
+          )}
+          {isPicked && !hasSubmission && (
             <button onClick={handleUnpick} disabled={picking} style={{ background: 'transparent', color: C.textMuted, border: `1px solid #dae2fd`, borderRadius: 10, padding: '9px 14px', fontSize: 13, fontWeight: 600, fontFamily: C.sans, cursor: 'pointer' }}>
               Unpick
             </button>
           )}
           {pickError && <span style={{ fontSize: 12.5, color: C.danger }}>{pickError}</span>}
+          {teamError && <span style={{ fontSize: 12.5, color: C.danger }}>{teamError}</span>}
+          {joinError && <span style={{ fontSize: 12.5, color: C.danger }}>{joinError}</span>}
         </div>
 
       </div>

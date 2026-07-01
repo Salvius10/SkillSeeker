@@ -150,3 +150,27 @@ create table if not exists news_post_comments (
   created_at timestamptz not null default now()
 );
 create index if not exists idx_news_post_comments_post on news_post_comments(post_id);
+
+-- Challenge teams: scoped to a single challenge pick (not a standing/global team).
+-- A picker can invite others onto their pick via invite_code; the whole team then
+-- shares one submission and splits its point award.
+create table if not exists challenge_teams (
+  id uuid primary key default gen_random_uuid(),
+  challenge_id uuid not null references challenges(id) on delete cascade,
+  invite_code text unique not null,
+  lead_id uuid not null references users(id),
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_challenge_teams_challenge on challenge_teams(challenge_id);
+
+alter table picks add column if not exists team_id uuid references challenge_teams(id) on delete set null;
+create index if not exists idx_picks_team_id on picks(team_id);
+
+-- Replace strict one-row-per-challenge exclusivity with: only one SOLO
+-- claimant per challenge (team joins happen via invite_code, not raw insert).
+drop index if exists idx_picks_challenge_exclusive;
+create unique index if not exists idx_picks_challenge_solo on picks(challenge_id) where team_id is null;
+
+-- Snapshot of who was on the team at submission time, so later leaves/joins
+-- never affect a submission that's already in flight.
+alter table submissions add column if not exists team_member_ids uuid[];
