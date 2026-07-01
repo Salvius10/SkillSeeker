@@ -21,10 +21,11 @@ export interface Challenge {
   priority: 'normal' | 'urgent';
   created_by: string;
   created_at: string;
+  allowed_submission_types?: string[] | null;
   entry_count?: number;
   pick_count?: number;
   approved_count?: number;
-  pickers?: { id: string; name: string }[];
+  pickers?: { id: string; name: string; team_id: string | null; is_lead: boolean }[];
   my_submission_status?: 'pending' | 'approved' | 'rejected' | null;
   my_submission_id?: string | null;
   my_submission_type?: string | null;
@@ -34,6 +35,12 @@ export interface ChallengeTeam {
   id: string;
   lead_id: string;
   invite_code: string | null; // only present when the caller is the lead
+}
+
+export interface MyTeamEntry {
+  challenge: { id: string; title: string; status: 'open' | 'closed'; points: number };
+  team: ChallengeTeam;
+  members: { id: string; name: string }[];
 }
 
 export interface ChallengeComment {

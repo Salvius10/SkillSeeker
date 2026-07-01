@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import type { Challenge, ChallengeTeam } from '../types';
 import { getChallengeTeam, getTeamInviteCode } from '../api/client';
+import { SUBMISSION_FORMATS } from '../lib/submissionFormats';
 
 const C = {
   primary: '#1a00d9',
@@ -40,13 +41,6 @@ function catConfig(cat: string): { color: string; bg: string; icon: React.ReactN
   return { color: C.primary, bg: 'rgba(26,0,217,0.08)', icon: <Sparkles size={11} /> };
 }
 
-const FORMAT_OPTIONS = [
-  { key: 'text', label: '✍ Text' },
-  { key: 'github_url', label: ' GitHub URL' },
-  { key: 'presentation_url', label: '📊 Presentation' },
-  { key: 'folder_url', label: '📁 Folder URL' },
-] as const;
-
 interface Props {
   challenge: Challenge;
   currentUserId: string;
@@ -80,6 +74,17 @@ export default function ChallengeModal({
   const approvedCount = challenge.approved_count ?? 0;
   const nextMultiplier = approvedCount === 0 ? 1 : approvedCount === 1 ? 0.75 : approvedCount === 2 ? 0.5 : 0.25;
   const nextPoints = Math.round(challenge.points * nextMultiplier);
+
+  // Admin-defined set of formats this challenge accepts — falls back to all of them for
+  // challenges created before this field existed.
+  const allowedFormats = challenge.allowed_submission_types?.length
+    ? SUBMISSION_FORMATS.filter(f => challenge.allowed_submission_types!.includes(f.key))
+    : SUBMISSION_FORMATS;
+
+  useEffect(() => {
+    if (!allowedFormats.some(f => f.key === submitType)) setSubmitType(allowedFormats[0]?.key ?? 'text');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challenge.id]);
 
   // Team-up state (invite a teammate onto my pick)
   const [myTeam, setMyTeam] = useState<ChallengeTeam | null>(null);
@@ -307,11 +312,17 @@ export default function ChallengeModal({
           {showSubmit && isPicked && !hasSubmission && (
             <div style={{ background: C.surfaceLow, border: '1px solid #dae2fd', borderRadius: 14, padding: '16px' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Submit your work</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                {FORMAT_OPTIONS.map(f => (
-                  <button key={f.key} type="button" onClick={() => setSubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 8, border: `2px solid ${submitType === f.key ? C.primary : '#dae2fd'}`, background: submitType === f.key ? '#eaedff' : C.surface, color: submitType === f.key ? C.primary : C.textSec, fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>{f.label}</button>
-                ))}
-              </div>
+              {allowedFormats.length > 1 ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                  {allowedFormats.map(f => (
+                    <button key={f.key} type="button" onClick={() => setSubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 8, border: `2px solid ${submitType === f.key ? C.primary : '#dae2fd'}`, background: submitType === f.key ? '#eaedff' : C.surface, color: submitType === f.key ? C.primary : C.textSec, fontSize: 12, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}>{f.label}</button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
+                  Required format: <strong style={{ color: C.primary }}>{allowedFormats[0]?.label}</strong>
+                </div>
+              )}
               <textarea
                 value={submitContent}
                 onChange={e => setSubmitContent(e.target.value)}

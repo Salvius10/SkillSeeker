@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
-import type { ChallengeTeam, NewsComment, Notification, SubmissionMessage } from '../types';
+import type { ChallengeTeam, MyTeamEntry, NewsComment, Notification, SubmissionMessage } from '../types';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001';
 
@@ -58,6 +58,8 @@ export const getTeamInviteCode = (challengeId: string): Promise<{ invite_code: s
   api.post(`/picks/${challengeId}/invite`).then(r => r.data);
 export const joinTeam = (inviteCode: string) =>
   api.post('/picks/join', { invite_code: inviteCode }).then(r => r.data);
+export const getMyTeams = (): Promise<MyTeamEntry[]> =>
+  api.get('/picks/my/teams').then(r => r.data);
 
 // Submissions
 export const getSubmissions = () => api.get('/submissions').then(r => r.data);

@@ -49,6 +49,7 @@ export default function MyChallenges() {
   const [threadTitle, setThreadTitle] = useState('');
   const [threadStatus, setThreadStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [threadType, setThreadType] = useState('text');
+  const [threadAllowedTypes, setThreadAllowedTypes] = useState<string[] | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -79,6 +80,7 @@ export default function MyChallenges() {
     setThreadTitle(c.title);
     setThreadStatus(c.my_submission_status as 'pending' | 'approved' | 'rejected');
     setThreadType(c.my_submission_type ?? 'text');
+    setThreadAllowedTypes(c.allowed_submission_types ?? null);
   };
 
   const handleUnpick = async (challengeId: string) => {
@@ -275,6 +277,7 @@ export default function MyChallenges() {
           challengeTitle={threadTitle}
           submissionType={threadType}
           status={threadStatus}
+          allowedTypes={threadAllowedTypes}
           onClose={() => { setThreadId(null); load(); }}
         />
       )}

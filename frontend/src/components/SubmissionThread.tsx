@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getSubmissionMessages, postSubmissionMessage, resubmitChallenge } from '../api/client';
 import type { SubmissionMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { SUBMISSION_FORMATS } from '../lib/submissionFormats';
 
 const TYPE_LABELS: Record<string, string> = {
   text: 'Text',
@@ -10,18 +11,12 @@ const TYPE_LABELS: Record<string, string> = {
   folder_url: 'Folder',
 };
 
-const FORMAT_OPTIONS = [
-  { key: 'text', label: '✍ Text' },
-  { key: 'github_url', label: ' GitHub URL' },
-  { key: 'presentation_url', label: '📊 Presentation' },
-  { key: 'folder_url', label: '📁 Folder URL' },
-] as const;
-
 interface Props {
   submissionId: string;
   challengeTitle: string;
   submissionType: string;
   status: 'pending' | 'approved' | 'rejected';
+  allowedTypes?: string[] | null;
   onClose: () => void;
 }
 
@@ -31,7 +26,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   rejected: { bg: '#fee7e0', color: '#d32f2f', label: 'Revision Requested' },
 };
 
-export default function SubmissionThread({ submissionId, challengeTitle, submissionType, status, onClose }: Props) {
+export default function SubmissionThread({ submissionId, challengeTitle, submissionType, status, allowedTypes, onClose }: Props) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<SubmissionMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +35,9 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
   const [showResubmit, setShowResubmit] = useState(false);
   const [resubmitContent, setResubmitContent] = useState('');
   const [resubmitType, setResubmitType] = useState(submissionType || 'text');
+  const resubmitFormats = allowedTypes?.length
+    ? SUBMISSION_FORMATS.filter(f => allowedTypes.includes(f.key))
+    : SUBMISSION_FORMATS;
   const [resubmitting, setResubmitting] = useState(false);
   const [sendError, setSendError] = useState('');
   const [resubmitError, setResubmitError] = useState('');
@@ -140,11 +138,17 @@ export default function SubmissionThread({ submissionId, challengeTitle, submiss
                 <div style={{ background: '#f0f3ff', borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1a00d9' }}>Submit your revision</div>
                   {/* Format selector */}
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {FORMAT_OPTIONS.map(f => (
-                      <button key={f.key} onClick={() => setResubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 7, border: `2px solid ${resubmitType === f.key ? '#1a00d9' : '#e2e8f4'}`, background: resubmitType === f.key ? '#fff' : '#f9fafc', color: resubmitType === f.key ? '#1a00d9' : '#69748c', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>{f.label}</button>
-                    ))}
-                  </div>
+                  {resubmitFormats.length > 1 ? (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {resubmitFormats.map(f => (
+                        <button key={f.key} onClick={() => setResubmitType(f.key)} style={{ padding: '6px 12px', borderRadius: 7, border: `2px solid ${resubmitType === f.key ? '#1a00d9' : '#e2e8f4'}`, background: resubmitType === f.key ? '#fff' : '#f9fafc', color: resubmitType === f.key ? '#1a00d9' : '#69748c', fontSize: 12, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>{f.label}</button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: '#69748c' }}>
+                      Required format: <strong style={{ color: '#1a00d9' }}>{resubmitFormats[0]?.label}</strong>
+                    </div>
+                  )}
                   <textarea value={resubmitContent} onChange={e => setResubmitContent(e.target.value)} placeholder={resubmitType === 'text' ? 'Describe your revised solution…' : 'Paste your URL here…'} rows={3} style={{ border: '1px solid #e2e8f4', borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'inherit', resize: 'vertical', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
                   {resubmitError && (
                     <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 7, padding: '7px 11px' }}>{resubmitError}</div>

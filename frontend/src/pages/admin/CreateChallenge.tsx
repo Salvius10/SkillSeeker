@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, AlertTriangle } from 'lucide-react';
 import { createChallenge } from '../../api/client';
+import { SUBMISSION_FORMATS } from '../../lib/submissionFormats';
 
 const C = {
   primary: '#1a00d9',
@@ -36,6 +37,7 @@ export default function CreateChallenge() {
   const [description, setDescription] = useState('');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
   const [outputFormat, setOutputFormat] = useState('');
+  const [allowedTypes, setAllowedTypes] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
   const [category, setCategory] = useState('');
   const [points, setPoints] = useState('');
@@ -50,10 +52,14 @@ export default function CreateChallenge() {
       setError('Title, description, acceptance criteria, output format and points are required');
       return;
     }
+    if (!allowedTypes.length) {
+      setError('Select at least one allowed submission format');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
-      await createChallenge({ title, description, acceptance_criteria: acceptanceCriteria, output_format: outputFormat, notes: notes || '', points, due_date: dueDate || undefined, priority, status: 'open', category: category || undefined });
+      await createChallenge({ title, description, acceptance_criteria: acceptanceCriteria, output_format: outputFormat, allowed_submission_types: allowedTypes, notes: notes || '', points, due_date: dueDate || undefined, priority, status: 'open', category: category || undefined });
       navigate('/admin/challenges');
     } catch (err: unknown) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Error creating challenge');
@@ -104,6 +110,26 @@ export default function CreateChallenge() {
               placeholder="How should the output be structured or submitted? e.g. GitHub repo, PDF report, live demo link…"
               style={{ minHeight: 80, border: '1px solid #dae2fd', borderRadius: 10, padding: '12px 14px', fontSize: 14, fontFamily: C.sans, lineHeight: 1.65, resize: 'vertical', outline: 'none', background: C.surface, color: C.text }}
             />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={lbl}>Submission Format <span style={{ color: '#d32f2f' }}>*</span></label>
+            <div style={{ fontSize: 12.5, color: C.textMuted, marginTop: -4 }}>Which formats can employees submit in? Select at least one — this replaces the free-choice picker at submission time.</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {SUBMISSION_FORMATS.map(f => {
+                const selected = allowedTypes.includes(f.key);
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setAllowedTypes(prev => selected ? prev.filter(t => t !== f.key) : [...prev, f.key])}
+                    style={{ padding: '8px 14px', borderRadius: 9, border: `2px solid ${selected ? C.primary : '#dae2fd'}`, background: selected ? '#eaedff' : C.surface, color: selected ? C.primary : C.textSec, fontSize: 13, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}
+                  >
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -10,6 +10,7 @@ const MAX_POINTS = 10000;
 const MAX_TITLE = 200;
 const MAX_DESCRIPTION = 5000;
 const MAX_CATEGORY = 80;
+const SUBMISSION_TYPES = new Set(['text', 'github_url', 'presentation_url', 'folder_url']);
 
 function validatePoints(points: unknown): { ok: true; value: number } | { ok: false; error: string } {
   const n = Number(points);
@@ -44,17 +45,30 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     }));
 
   const [{ data: pickRows }, { data: approvedRows }] = await Promise.all([
-    supabase.from('picks').select('challenge_id, user:users!user_id(id, name)'),
+    supabase.from('picks').select('challenge_id, team_id, user:users!user_id(id, name)'),
     supabase.from('submissions').select('challenge_id').eq('status', 'approved'),
   ]);
 
-  const pickersMap: Record<string, { id: string; name: string }[]> = {};
+  // So the admin (and teammates) can see who's grouped into which team, not just a flat picker list.
+  const pickTeamIds = [...new Set((pickRows ?? []).map(p => p.team_id).filter((id): id is string => !!id))];
+  let leadByTeam: Record<string, string> = {};
+  if (pickTeamIds.length) {
+    const { data: teamsData } = await supabase.from('challenge_teams').select('id, lead_id').in('id', pickTeamIds);
+    leadByTeam = Object.fromEntries((teamsData ?? []).map(t => [t.id, t.lead_id]));
+  }
+
+  const pickersMap: Record<string, { id: string; name: string; team_id: string | null; is_lead: boolean }[]> = {};
   for (const p of (pickRows || [])) {
     const raw = p.user as unknown;
     const u = (Array.isArray(raw) ? raw[0] : raw) as { id: string; name: string } | null;
     if (!u) continue;
     if (!pickersMap[p.challenge_id]) pickersMap[p.challenge_id] = [];
-    pickersMap[p.challenge_id].push({ id: u.id, name: u.name });
+    pickersMap[p.challenge_id].push({
+      id: u.id,
+      name: u.name,
+      team_id: p.team_id ?? null,
+      is_lead: !!p.team_id && leadByTeam[p.team_id] === u.id,
+    });
   }
 
   const approvedCountMap: Record<string, number> = {};
@@ -121,7 +135,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { title, description, acceptance_criteria, output_format, notes, category, points, due_date, priority, status } = req.body;
+  const { title, description, acceptance_criteria, output_format, notes, category, points, due_date, priority, status, allowed_submission_types } = req.body;
   if (!title || !description || !acceptance_criteria || !output_format || !points) {
     res.status(400).json({ error: 'title, description, acceptance criteria, output format and points are required' });
     return;
@@ -132,13 +146,17 @@ router.post('/', requireAuth, requireAdmin, async (req: Request, res: Response) 
   if (typeof description === 'string' && description.trim().length > MAX_DESCRIPTION) {
     res.status(400).json({ error: `Description must be ${MAX_DESCRIPTION} characters or fewer` }); return;
   }
+  if (!Array.isArray(allowed_submission_types) || !allowed_submission_types.length || !allowed_submission_types.every((t: unknown) => SUBMISSION_TYPES.has(t as string))) {
+    res.status(400).json({ error: 'Select at least one allowed submission format' });
+    return;
+  }
 
   const ptsResult = validatePoints(points);
   if (!ptsResult.ok) { res.status(400).json({ error: ptsResult.error }); return; }
 
   const { data, error } = await supabase
     .from('challenges')
-    .insert({ title, description, acceptance_criteria, output_format, notes: notes || '', category, points: ptsResult.value, due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id })
+    .insert({ title, description, acceptance_criteria, output_format, notes: notes || '', category, points: ptsResult.value, due_date, priority: priority || 'normal', status: status || 'open', created_by: req.user!.id, allowed_submission_types })
     .select()
     .single();
   if (error) { console.error('[challenges.POST]', error); res.status(500).json({ error: 'Could not create challenge' }); return; }

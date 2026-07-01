@@ -81,7 +81,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
   const { data: challenge } = await supabase
     .from('challenges')
-    .select('title, due_date, status')
+    .select('title, due_date, status, allowed_submission_types')
     .eq('id', challenge_id)
     .single();
   if (challenge?.status === 'closed') {
@@ -98,6 +98,11 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
   }
 
   const sType = submission_type || 'text';
+  const allowedTypes: string[] | null = challenge?.allowed_submission_types?.length ? challenge.allowed_submission_types : null;
+  if (allowedTypes && !allowedTypes.includes(sType)) {
+    res.status(400).json({ error: `This challenge only accepts: ${allowedTypes.join(', ')}` });
+    return;
+  }
   if (URL_TYPES.has(sType) && !isValidHttpUrl(content)) {
     res.status(400).json({ error: 'Submission content must be a valid URL starting with http:// or https://' });
     return;
@@ -187,7 +192,7 @@ router.put('/:id/resubmit', requireAuth, async (req: Request, res: Response) => 
 
   const { data: sub } = await supabase
     .from('submissions')
-    .select('user_id, status, challenge_id')
+    .select('user_id, status, challenge_id, challenge:challenges(allowed_submission_types)')
     .eq('id', req.params.id)
     .single();
   if (!sub) { res.status(404).json({ error: 'Submission not found' }); return; }
@@ -195,6 +200,13 @@ router.put('/:id/resubmit', requireAuth, async (req: Request, res: Response) => 
   if (sub.status !== 'rejected') { res.status(400).json({ error: 'Can only resubmit rejected submissions' }); return; }
 
   const sType = submission_type || 'text';
+  const subChallenge = sub.challenge as { allowed_submission_types: string[] | null } | { allowed_submission_types: string[] | null }[] | null;
+  const challengeInfo = Array.isArray(subChallenge) ? subChallenge[0] : subChallenge;
+  const allowedTypes: string[] | null = challengeInfo?.allowed_submission_types?.length ? challengeInfo.allowed_submission_types : null;
+  if (allowedTypes && !allowedTypes.includes(sType)) {
+    res.status(400).json({ error: `This challenge only accepts: ${allowedTypes.join(', ')}` });
+    return;
+  }
   if (URL_TYPES.has(sType) && !isValidHttpUrl(content)) {
     res.status(400).json({ error: 'Submission content must be a valid URL starting with http:// or https://' });
     return;

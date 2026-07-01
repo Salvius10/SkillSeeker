@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, Bookmark, Newspaper, Trophy, User, Bell, Plus, CheckSquare, BarChart2, LogOut } from 'lucide-react';
+import { LayoutGrid, Bookmark, Newspaper, Trophy, User, Bell, Plus, CheckSquare, BarChart2, LogOut, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { ReactNode } from 'react';
 
@@ -106,6 +106,7 @@ export default function Sidebar({ unreadCount, pendingReviewCount }: Props) {
       <nav aria-label="Main navigation" style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '2px 10px', flex: 1, overflowY: 'auto' }}>
         <NavItem to="/challenges"    icon={<LayoutGrid size={16} />}   label="All Challenges"    visible={emp} />
         <NavItem to="/my-challenges" icon={<Bookmark size={16} />}     label="My Challenges"     visible={emp} />
+        <NavItem to="/my-team"       icon={<Users size={16} />}        label="My Team"           visible={emp} />
         <NavItem to="/news"          icon={<Newspaper size={16} />}    label="News Feed"         visible={emp} />
         <NavItem to="/leaderboard"   icon={<Trophy size={16} />}       label="Leaderboard"       visible={emp} />
         <NavItem to="/profile"       icon={<User size={16} />}         label="My Profile"        visible={emp} />

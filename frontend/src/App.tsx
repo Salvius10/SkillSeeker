@@ -8,6 +8,7 @@ import Login from './pages/Login';
 
 const Challenges    = lazy(() => import('./pages/Challenges'));
 const MyChallenges  = lazy(() => import('./pages/MyChallenges'));
+const MyTeam        = lazy(() => import('./pages/MyTeam'));
 const NewsFeed      = lazy(() => import('./pages/NewsFeed'));
 const Leaderboard   = lazy(() => import('./pages/Leaderboard'));
 const Profile       = lazy(() => import('./pages/Profile'));
@@ -119,6 +120,7 @@ export default function App() {
         {/* Employee routes */}
         <Route path="/challenges" element={<Challenges />} />
         <Route path="/my-challenges" element={<MyChallenges />} />
+        <Route path="/my-team" element={<MyTeam />} />
         <Route path="/news" element={<NewsFeed />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/profile" element={<Profile />} />

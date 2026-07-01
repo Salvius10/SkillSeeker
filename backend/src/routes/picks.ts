@@ -22,18 +22,48 @@ router.get('/my', requireAuth, async (req: Request, res: Response) => {
   res.json((data || []).map(p => p.challenge_id));
 });
 
+// Every challenge I'm teamed up on, with the challenge info and full roster
+router.get('/my/teams', requireAuth, async (req: Request, res: Response) => {
+  const { data: myPicks } = await supabase
+    .from('picks')
+    .select('challenge_id, team_id')
+    .eq('user_id', req.user!.id)
+    .not('team_id', 'is', null);
+  if (!myPicks?.length) { res.json([]); return; }
+
+  const teamIds = myPicks.map(p => p.team_id) as string[];
+  const challengeIds = myPicks.map(p => p.challenge_id);
+
+  const [{ data: teams }, { data: challenges }, { data: memberRows }] = await Promise.all([
+    supabase.from('challenge_teams').select('id, challenge_id, lead_id, invite_code').in('id', teamIds),
+    supabase.from('challenges').select('id, title, status, points').in('id', challengeIds),
+    supabase.from('picks').select('team_id, user:users!user_id(id, name)').in('team_id', teamIds),
+  ]);
+
+  const challengeById: Record<string, { id: string; title: string; status: string; points: number }> =
+    Object.fromEntries((challenges ?? []).map(c => [c.id, c]));
+
+  const membersByTeam: Record<string, { id: string; name: string }[]> = {};
+  for (const m of memberRows ?? []) {
+    const u = (Array.isArray(m.user) ? m.user[0] : m.user) as { id: string; name: string } | null;
+    if (!u) continue;
+    (membersByTeam[m.team_id] ??= []).push(u);
+  }
+
+  const result = (teams ?? [])
+    .map(t => ({
+      challenge: challengeById[t.challenge_id] ?? null,
+      team: { id: t.id, lead_id: t.lead_id, invite_code: t.lead_id === req.user!.id ? t.invite_code : null },
+      members: membersByTeam[t.id] ?? [],
+    }))
+    .filter(r => r.challenge);
+
+  res.json(result);
+});
+
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   const { challenge_id } = req.body;
   if (!challenge_id) { res.status(400).json({ error: 'challenge_id is required' }); return; }
-
-  const { count } = await supabase
-    .from('picks')
-    .select('id', { count: 'exact', head: true })
-    .eq('challenge_id', challenge_id);
-  if ((count ?? 0) > 0) {
-    res.status(409).json({ error: 'Already picked. Ask the picker for an invite code to join their team.' });
-    return;
-  }
 
   const { data, error } = await supabase
     .from('picks')

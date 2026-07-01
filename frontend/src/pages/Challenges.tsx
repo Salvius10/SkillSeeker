@@ -74,6 +74,7 @@ export default function Challenges() {
   const [threadTitle, setThreadTitle] = useState('');
   const [threadStatus, setThreadStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [threadType, setThreadType] = useState('text');
+  const [threadAllowedTypes, setThreadAllowedTypes] = useState<string[] | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -141,6 +142,7 @@ export default function Challenges() {
     setThreadTitle(c.title);
     setThreadStatus(c.my_submission_status as 'pending' | 'approved' | 'rejected');
     setThreadType(c.my_submission_type ?? 'text');
+    setThreadAllowedTypes(c.allowed_submission_types ?? null);
   };
 
   const filterTabStyle = (active: boolean, accent?: string): React.CSSProperties => ({
@@ -413,6 +415,7 @@ export default function Challenges() {
           challengeTitle={threadTitle}
           submissionType={threadType}
           status={threadStatus}
+          allowedTypes={threadAllowedTypes}
           onClose={() => { setThreadId(null); load(); }}
         />
       )}

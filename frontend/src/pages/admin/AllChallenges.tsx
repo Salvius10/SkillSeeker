@@ -1,7 +1,26 @@
 import { useState, useEffect } from 'react';
-import { LayoutGrid, AlertTriangle, Coins, Edit2, X, Check, Trash2 } from 'lucide-react';
+import { LayoutGrid, AlertTriangle, Coins, Edit2, X, Check, Trash2, Users, Crown, ChevronDown } from 'lucide-react';
 import { getChallenges, updateChallenge, deleteChallenge } from '../../api/client';
 import type { Challenge } from '../../types';
+
+type Picker = NonNullable<Challenge['pickers']>[number];
+
+function groupPickers(pickers: Picker[]): { team_id: string | null; members: Picker[] }[] {
+  const groups: { team_id: string | null; members: Picker[] }[] = [];
+  const indexByTeam: Record<string, number> = {};
+  for (const p of pickers) {
+    if (p.team_id) {
+      if (indexByTeam[p.team_id] === undefined) {
+        indexByTeam[p.team_id] = groups.length;
+        groups.push({ team_id: p.team_id, members: [] });
+      }
+      groups[indexByTeam[p.team_id]].members.push(p);
+    } else {
+      groups.push({ team_id: null, members: [p] });
+    }
+  }
+  return groups;
+}
 
 const C = {
   primary: '#1a00d9',
@@ -57,6 +76,7 @@ export default function AllChallenges() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -148,10 +168,11 @@ export default function AllChallenges() {
 
       {/* Table */}
       <div style={{ ...card, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 72px 90px 100px 150px', padding: '12px 20px', background: C.surfaceLow, borderBottom: '1px solid #dae2fd', fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: C.mono }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 72px 90px 90px 100px 150px', padding: '12px 20px', background: C.surfaceLow, borderBottom: '1px solid #dae2fd', fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', textTransform: 'uppercase', fontFamily: C.mono }}>
           <span>Challenge</span>
           <span style={{ textAlign: 'center' }}>Status</span>
           <span style={{ textAlign: 'center' }}>Entries</span>
+          <span style={{ textAlign: 'center' }}>Team</span>
           <span style={{ textAlign: 'right' }}>Points</span>
           <span style={{ textAlign: 'right' }}>Due</span>
           <span style={{ textAlign: 'right' }}>Actions</span>
@@ -161,19 +182,27 @@ export default function AllChallenges() {
           const statusKey = c.priority === 'urgent' ? 'urgent' : c.status;
           const { bg, fg } = STATUS_STYLE[statusKey] ?? { bg: C.surfaceLow, fg: C.textMuted };
           const isEditing = editId === c.id;
+          const isExpanded = expandedId === c.id;
+          const pickCount = c.pick_count ?? 0;
 
           return (
             <div key={c.id}>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 100px 72px 90px 100px 150px',
+                gridTemplateColumns: '1fr 100px 72px 90px 90px 100px 150px',
                 padding: '14px 20px',
-                borderBottom: isEditing ? 'none' : '1px solid #f2f3ff',
+                borderBottom: (isEditing || isExpanded) ? 'none' : '1px solid #f2f3ff',
                 alignItems: 'center',
                 background: isEditing ? '#f8f9ff' : undefined,
                 transition: 'background 0.15s',
               }}>
-                <div>
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedId(isExpanded ? null : c.id); } }}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div style={{ fontWeight: 700, fontSize: 15, color: C.text, letterSpacing: '-0.2px' }}>{c.title}</div>
                   <div style={{ fontSize: 11.5, color: C.textMuted, marginTop: 3, fontFamily: C.mono }}>{c.category.toUpperCase()}</div>
                 </div>
@@ -183,6 +212,15 @@ export default function AllChallenges() {
                   </span>
                 </span>
                 <span style={{ textAlign: 'center', color: C.textSec, fontSize: 13, fontFamily: C.mono }}>{c.entry_count ?? 0}</span>
+                <span style={{ textAlign: 'center' }}>
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: isExpanded ? '#eaedff' : 'transparent', color: pickCount > 0 ? C.primary : C.textMuted, border: 'none', borderRadius: 8, padding: '4px 8px', fontSize: 12.5, fontWeight: 700, fontFamily: C.mono, cursor: 'pointer' }}
+                  >
+                    <Users size={12} /> {pickCount}
+                    <ChevronDown size={12} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                  </button>
+                </span>
                 <span style={{ textAlign: 'right', fontWeight: 800, color: C.orange, fontSize: 14, fontFamily: C.mono }}>{c.points}</span>
                 <span style={{ textAlign: 'right', fontSize: 12, color: C.textMuted, fontFamily: C.mono }}>
                   {c.due_date ? new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
@@ -210,6 +248,41 @@ export default function AllChallenges() {
                   )}
                 </div>
               </div>
+
+              {isExpanded && !isEditing && (
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid #f2f3ff', background: '#f8f9ff', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono }}>
+                    Participants ({pickCount})
+                  </div>
+                  {pickCount === 0 ? (
+                    <div style={{ fontSize: 13, color: C.textMuted }}>No one has picked this challenge yet.</div>
+                  ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    {groupPickers(c.pickers ?? []).map((g, i) => (
+                      <div
+                        key={g.team_id ?? `solo-${g.members[0].id}`}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+                          background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
+                          padding: '8px 12px',
+                        }}
+                      >
+                        {g.team_id && (
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: C.primary, fontFamily: C.mono, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                            Team {i + 1} ·
+                          </span>
+                        )}
+                        {g.members.map(m => (
+                          <span key={m.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#eaedff', color: C.primary, fontSize: 12, fontWeight: 700, padding: '3px 9px', borderRadius: 20, fontFamily: C.sans }}>
+                            {m.name} {m.is_lead && <Crown size={11} color={C.orange} />}
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  )}
+                </div>
+              )}
 
               {isEditing && (
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid #f2f3ff', background: '#f8f9ff', display: 'flex', flexDirection: 'column', gap: 12 }}>

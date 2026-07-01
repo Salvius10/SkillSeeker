@@ -166,11 +166,19 @@ create index if not exists idx_challenge_teams_challenge on challenge_teams(chal
 alter table picks add column if not exists team_id uuid references challenge_teams(id) on delete set null;
 create index if not exists idx_picks_team_id on picks(team_id);
 
--- Replace strict one-row-per-challenge exclusivity with: only one SOLO
--- claimant per challenge (team joins happen via invite_code, not raw insert).
-drop index if exists idx_picks_challenge_exclusive;
-create unique index if not exists idx_picks_challenge_solo on picks(challenge_id) where team_id is null;
-
 -- Snapshot of who was on the team at submission time, so later leaves/joins
 -- never affect a submission that's already in flight.
 alter table submissions add column if not exists team_member_ids uuid[];
+
+-- Multiple independent employees (solo or teamed) can all attempt the same
+-- challenge concurrently — matches the existing rank-based reward multiplier
+-- (1st/2nd/3rd completer). Drop ALL pick exclusivity: the old global
+-- exclusive index, and the newer solo-only partial index.
+drop index if exists idx_picks_challenge_exclusive;
+drop index if exists idx_picks_challenge_solo;
+
+-- Admin-defined set of acceptable submission_type values for a challenge
+-- (subset of 'text' | 'github_url' | 'presentation_url' | 'folder_url').
+-- Null/empty means "not set" — treated as all types allowed, so existing
+-- challenges created before this feature keep working unchanged.
+alter table challenges add column if not exists allowed_submission_types text[];
