@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LayoutGrid, AlertTriangle, Coins, Edit2, X, Check, Trash2, Users, Crown, ChevronDown } from 'lucide-react';
 import { getChallenges, updateChallenge, deleteChallenge } from '../../api/client';
 import type { Challenge } from '../../types';
+import { SUBMISSION_FORMATS } from '../../lib/submissionFormats';
 
 type Picker = NonNullable<Challenge['pickers']>[number];
 
@@ -56,7 +57,32 @@ const inp: React.CSSProperties = {
 };
 const sel: React.CSSProperties = { ...inp, cursor: 'pointer' };
 
-interface EditForm { title: string; status: 'open' | 'closed'; priority: 'normal' | 'urgent'; due_date: string; }
+interface EditForm {
+  title: string;
+  description: string;
+  acceptance_criteria: string;
+  output_format: string;
+  allowed_submission_types: string[];
+  status: 'open' | 'closed';
+  priority: 'normal' | 'urgent';
+  due_date: string;
+}
+
+const textarea: React.CSSProperties = {
+  minHeight: 70,
+  border: '1px solid #dae2fd',
+  borderRadius: 10,
+  padding: '10px 12px',
+  fontSize: 13,
+  fontFamily: "'Hanken Grotesk', sans-serif",
+  lineHeight: 1.6,
+  resize: 'vertical',
+  outline: 'none',
+  background: '#ffffff',
+  color: '#131b2e',
+  width: '100%',
+  boxSizing: 'border-box',
+};
 
 const card: React.CSSProperties = {
   background: C.surface,
@@ -69,7 +95,7 @@ export default function AllChallenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ title: '', status: 'open', priority: 'normal', due_date: '' });
+  const [editForm, setEditForm] = useState<EditForm>({ title: '', description: '', acceptance_criteria: '', output_format: '', allowed_submission_types: [], status: 'open', priority: 'normal', due_date: '' });
   const [editError, setEditError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -91,12 +117,29 @@ export default function AllChallenges() {
 
   const startEdit = (c: Challenge) => {
     setEditId(c.id);
-    setEditForm({ title: c.title, status: c.status, priority: c.priority, due_date: c.due_date ? c.due_date.slice(0, 10) : '' });
+    setEditForm({
+      title: c.title,
+      description: c.description,
+      acceptance_criteria: c.acceptance_criteria,
+      output_format: c.output_format,
+      allowed_submission_types: c.allowed_submission_types?.length ? c.allowed_submission_types : SUBMISSION_FORMATS.map(f => f.key),
+      status: c.status,
+      priority: c.priority,
+      due_date: c.due_date ? c.due_date.slice(0, 10) : '',
+    });
   };
   const cancelEdit = () => setEditId(null);
 
   const saveEdit = async () => {
     if (!editId) return;
+    if (!editForm.title.trim() || !editForm.description.trim() || !editForm.acceptance_criteria.trim() || !editForm.output_format.trim()) {
+      setEditError('Title, description, acceptance criteria and output format are required');
+      return;
+    }
+    if (!editForm.allowed_submission_types.length) {
+      setEditError('Select at least one allowed submission format');
+      return;
+    }
     setEditError('');
     setSaving(true);
     try {
@@ -285,7 +328,7 @@ export default function AllChallenges() {
               )}
 
               {isEditing && (
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f2f3ff', background: '#f8f9ff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #f2f3ff', background: '#f8f9ff', display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 150px', gap: 12, alignItems: 'end' }}>
                     {[
                       { label: 'Title', el: <input style={inp} value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} /> },
@@ -299,6 +342,46 @@ export default function AllChallenges() {
                       </div>
                     ))}
                   </div>
+
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 4 }}>Description</div>
+                    <textarea style={textarea} value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 4 }}>Acceptance Criteria</div>
+                    <textarea style={textarea} value={editForm.acceptance_criteria} onChange={e => setEditForm(f => ({ ...f, acceptance_criteria: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 4 }}>Output Format</div>
+                    <textarea style={{ ...textarea, minHeight: 50 }} value={editForm.output_format} onChange={e => setEditForm(f => ({ ...f, output_format: e.target.value }))} />
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: C.mono, marginBottom: 6 }}>Submission Format</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {SUBMISSION_FORMATS.map(f => {
+                        const selected = editForm.allowed_submission_types.includes(f.key);
+                        return (
+                          <button
+                            key={f.key}
+                            type="button"
+                            onClick={() => setEditForm(form => ({
+                              ...form,
+                              allowed_submission_types: selected
+                                ? form.allowed_submission_types.filter(t => t !== f.key)
+                                : [...form.allowed_submission_types, f.key],
+                            }))}
+                            style={{ padding: '7px 12px', borderRadius: 8, border: `2px solid ${selected ? C.primary : '#dae2fd'}`, background: selected ? '#eaedff' : C.surface, color: selected ? C.primary : C.textSec, fontSize: 12.5, fontWeight: 700, fontFamily: C.sans, cursor: 'pointer' }}
+                          >
+                            {f.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {editError && (
                     <div style={{ fontSize: 12.5, color: '#d32f2f', background: '#fee7e0', border: '1px solid rgba(211,47,47,0.2)', borderRadius: 8, padding: '8px 12px' }}>{editError}</div>
                   )}

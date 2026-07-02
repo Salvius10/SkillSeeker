@@ -225,13 +225,17 @@ router.post('/:id/comments/:commentId/like', requireAuth, async (req: Request, r
 });
 
 router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
-  const { title, description, acceptance_criteria, output_format, notes, category, points, due_date, priority, status } = req.body;
+  const { title, description, acceptance_criteria, output_format, notes, category, points, due_date, priority, status, allowed_submission_types } = req.body;
 
   if (title !== undefined && typeof title === 'string' && title.trim().length > MAX_TITLE) {
     res.status(400).json({ error: `Title must be ${MAX_TITLE} characters or fewer` }); return;
   }
   if (description !== undefined && typeof description === 'string' && description.trim().length > MAX_DESCRIPTION) {
     res.status(400).json({ error: `Description must be ${MAX_DESCRIPTION} characters or fewer` }); return;
+  }
+  if (allowed_submission_types !== undefined && (!Array.isArray(allowed_submission_types) || !allowed_submission_types.length || !allowed_submission_types.every((t: unknown) => SUBMISSION_TYPES.has(t as string)))) {
+    res.status(400).json({ error: 'Select at least one allowed submission format' });
+    return;
   }
 
   let validatedPoints: number | undefined;
@@ -243,7 +247,7 @@ router.put('/:id', requireAuth, requireAdmin, async (req: Request, res: Response
 
   const { data, error } = await supabase
     .from('challenges')
-    .update({ title, description, acceptance_criteria, output_format, notes, category, points: validatedPoints, due_date, priority, status })
+    .update({ title, description, acceptance_criteria, output_format, notes, category, points: validatedPoints, due_date, priority, status, allowed_submission_types })
     .eq('id', req.params.id)
     .select()
     .single();
